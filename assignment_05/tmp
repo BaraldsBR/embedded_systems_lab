@@ -17,6 +17,8 @@ gst-launch-1.0 -v -e autovideosrc ! jpegenc ! image/jpeg,width=640,height=480,fr
 ## play yuv with VLC
 /Applications/_downloaded/VLC.app/Contents/MacOS/VLC --rawvid-fps 30 --rawvid-width 640 --rawvid-height 480 --rawvid-chroma I420 file.yuv
 
+## play vid
+gst-launch-1.0 -v -e autovideosrc ! jpegenc ! image/jpeg,width=640,height=480,framerate=30/1 ! jpegdec ! autovideosink
+
 ## Compile
 gcc -Wall main.c -o main $(pkg-config --cflags --libs gstreamer-1.0)
-
