@@ -6,11 +6,17 @@ gst-launch-1.0 -v -e v4l2src device=/dev/video0 ! fakesink
 
 gst-launch-1.0 -v -e v4l2src device=/dev/video0 ! jpegenc ! image/jpeg,width=640,height=480,framerate=30/1 ! fakesink
 
+## make avi
 gst-launch-1.0 -v -e v4l2src device=/dev/video0 ! jpegenc ! image/jpeg,width=640,height=480,framerate=30/1 ! avimux ! filesink location=file.avi
 
+## make yuv
 gst-launch-1.0 -v -e v4l2src device=/dev/video0 ! jpegenc ! image/jpeg,width=640,height=480,framerate=30/1 ! jpegdec ! filesink location=file.yuv
 
+gst-launch-1.0 -v -e autovideosrc ! jpegenc ! image/jpeg,width=640,height=480,framerate=30/1 ! jpegdec ! filesink location=file.yuv
 
+## play yuv with VLC
 /Applications/_downloaded/VLC.app/Contents/MacOS/VLC --rawvid-fps 30 --rawvid-width 640 --rawvid-height 480 --rawvid-chroma I420 file.yuv
 
+## Compile
 gcc -Wall main.c -o main $(pkg-config --cflags --libs gstreamer-1.0)
+
