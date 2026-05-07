@@ -1,36 +1,30 @@
+/* Shows lum values from webcam */
+
 #include <gst/gst.h>
 #include <glib.h>
 #include <stdio.h>
 
-#ifdef __APPLE__
-#include <TargetConditionals.h>
-#endif
-
-
 static GstFlowReturn new_sample (GstElement *sink) {
   GstSample *sample;
   GstBuffer *buffer;
-  u_int8_t dest[192];
+  u_int8_t dest_Y[192];
 
 
   /* Retrieve the buffer */
   g_signal_emit_by_name (sink, "pull-sample", &sample);
 
-
-
   if (sample) {
     buffer = gst_sample_get_buffer (sample);
-    // g_print ("*");
 
     size_t size = 192;
-    gst_buffer_extract(buffer, 0, (void*)dest, size);
+    gst_buffer_extract(buffer, 0, (void*)dest_Y, size);
 
     /* print just Y' */
     for (size_t row = 0; row < 12; row++)
     {
       for (size_t col = 0; col < 16; col++)
       {
-        printf("%3hhu ", dest[row*16 + col]);
+        printf("%3hhu ", dest_Y[row*16 + (15 - col)]);
       }
       printf("\n");
     }
@@ -80,8 +74,7 @@ bus_call (GstBus     *bus,
 }
 
 
-int main_main (int   argc,
-      char *argv[])
+int main (int argc, char *argv[])
 {
   GMainLoop *loop;
 
@@ -97,19 +90,19 @@ int main_main (int   argc,
   
   // /* Check input arguments */
   if (argc != 2) {
-    g_printerr ("Usage: %s <Output file>\n", argv[0]);
+    g_printerr ("Usage: %s <Device name>\n", argv[0]);
     return -1;
   }
 
   /* Create gstreamer elements */
   pipeline   = gst_pipeline_new ("video-storer");
-  source     = gst_element_factory_make ("autovideosrc",  "webcam-source");
+  source     = gst_element_factory_make ("v4l2src",       "webcam-source");
   encoder    = gst_element_factory_make ("jpegenc",       "jpeg-encoder");
   decoder    = gst_element_factory_make ("jpegdec",       "jpeg-decoder");
   videoscale = gst_element_factory_make ("videoscale",    "video-scale");
   sink       = gst_element_factory_make ("appsink",       "app-sink");
 
-  if (!pipeline || !source || !encoder || !decoder || !sink) {
+  if (!pipeline || !source || !encoder || !decoder || !videoscale || !sink) {
     g_printerr ("One element could not be created. Exiting.\n");
     return -1;
   }
@@ -117,6 +110,7 @@ int main_main (int   argc,
   /* Set up the pipeline */
 
   /* we set the input and output filename to the source element */
+  g_object_set (G_OBJECT (source), "device", argv[1], NULL);
   g_object_set (G_OBJECT (sink), "emit-signals", TRUE, NULL);
   g_signal_connect (G_OBJECT (sink), "new-sample", G_CALLBACK(new_sample), NULL);
 
@@ -169,17 +163,5 @@ int main_main (int   argc,
   g_source_remove (bus_watch_id);
   g_main_loop_unref (loop);
 
-
   return 0;
-
-
-}
-
-int main (int argc, char *argv[])
-{
-#if defined(__APPLE__) && TARGET_OS_MAC && !TARGET_OS_IPHONE
-  return gst_macos_main ((GstMainFunc) main_main, argc, argv, NULL);
-#else
-  return main_main (argc, argv);
-#endif
 }

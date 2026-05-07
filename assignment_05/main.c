@@ -1,3 +1,5 @@
+/* Makes YUV file from webcam */
+
 #include <gst/gst.h>
 #include <glib.h>
 
