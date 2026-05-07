@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	*((uint32_t *)esl_demo_map) = 1 << 31 | 0x08;
+	*((uint32_t *)esl_demo_map) = 1 << 31 | 0x08; /* 80 00 00 08 */ 
 	close(fd);
 	return 0;
 }
