@@ -17,9 +17,9 @@ int main(int argc, char** argv) {
 		perror("Couldn't open /dev/mem\n");
 		return -1;
 	}
-	uint8_t* esl_demo_map = NULL;
-	esl_demo_map = (uint8_t*)mmap(NULL, HPS_0_ARM_A9_0_ESL_BUS_DEMO_0_SPAN, PROT_READ | PROT_WRITE, MAP_SHARED, fd, HPS_0_ARM_A9_0_ESL_BUS_DEMO_0_BASE);
-	if (esl_demo_map == MAP_FAILED) {
+	uint8_t* encoder_bus_map = NULL;
+	encoder_bus_map = (uint8_t*)mmap(NULL, HPS_0_ARM_A9_0_BUS_0_SPAN, PROT_READ | PROT_WRITE, MAP_SHARED, fd, HPS_0_ARM_A9_0_BUS_0_BASE);
+	if (encoder_bus_map == MAP_FAILED) {
 		perror("Couldn't map bridge.");
 		close(fd);
 		return -1;
@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 
 	while (True)
 	{
-		printf("position: %4.d", *((int32_t *)esl_demo_map);
+		printf("position: %4.d", *((int32_t *)encoder_bus_map);
 	}
 
 	close(fd);
