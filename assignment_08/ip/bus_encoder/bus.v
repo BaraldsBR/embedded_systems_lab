@@ -2,7 +2,8 @@
 module bus #(
 		parameter LED_WIDTH = 8,
         parameter DATA_WIDTH = 32,
-        parameter POS_WIDTH = 16
+        parameter POS_WIDTH = 16,
+        parameter DEBOUNCE_CYCLES = 1000
 	) (
 		input  wire [7:0]  slave_address,     //      avs_s0.address
 		input  wire        slave_read,        //            .read
@@ -29,28 +30,36 @@ module bus #(
     wire debounced_yaw_A;
     wire debounced_yaw_B;
 
-    debouncer debouncer_pitch_A (
+    debouncer #(
+        .DEBOUNCE_CYCLES(DEBOUNCE_CYCLES)
+    ) debouncer_pitch_A (
         .clk(clk),
         .rst(signal_reset),
         .signal(signal_pitch_A),
         .debounced(debounced_pitch_A)
     );
 
-    debouncer debouncer_pitch_B (
+    debouncer #(
+        .DEBOUNCE_CYCLES(DEBOUNCE_CYCLES)
+    ) debouncer_pitch_B (
         .clk(clk),
         .rst(signal_reset),
         .signal(signal_pitch_B),
         .debounced(debounced_pitch_B)
     );
 
-    debouncer debouncer_yaw_A (
+    debouncer #(
+        .DEBOUNCE_CYCLES(DEBOUNCE_CYCLES)
+    ) debouncer_yaw_A (
         .clk(clk),
         .rst(signal_reset),
         .signal(signal_yaw_A),
         .debounced(debounced_yaw_A)
     );
 
-    debouncer debouncer_yaw_B (
+    debouncer #(
+        .DEBOUNCE_CYCLES(DEBOUNCE_CYCLES)
+    ) debouncer_yaw_B (
         .clk(clk),
         .rst(signal_reset),
         .signal(signal_yaw_B),
