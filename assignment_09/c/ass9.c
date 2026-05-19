@@ -9,8 +9,8 @@
 #include "soc_system.h"
 
 typedef struct _bus_content_t {
-  int16_t yaw;
   int16_t pitch;
+  int16_t yaw;
 } bus_content_t;
 
 int main(int argc, char** argv) {
@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
 		perror("Couldn't map bridge.");
 		close(fd);
 		return -1;
+
 	}
 
     
@@ -41,12 +42,14 @@ int main(int argc, char** argv) {
 
 	while (1) 
     {   
+		printf("\nSet pitch: ");
         // set pitch
-		scanf("Enter pitch pwm: %d", &pwm_int);
+		scanf("%d", &pwm_int);
         bus_content.pitch = (int16_t)pwm_int;
 
         // set yaw
-        scanf("Enter yaw pwm: %d", &pwm_int);
+		printf("\nSet yaw: ");
+        scanf("%d", &pwm_int);
         bus_content.yaw = (int16_t)pwm_int;
         
         *((bus_content_t*)encoder_bus_map) = bus_content;
