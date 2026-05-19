@@ -26,9 +26,9 @@ module pwm #(
         end
     end
 
-    assign dir_A = (target_zero) ? 0 : target_sign;
-    assign dir_B = (target_zero) ? 0 : ~target_sign;
+    assign dir_A = (target_zero) ? 0 : ~target_sign;
+    assign dir_B = (target_zero) ? 0 : target_sign;
 
-    assign PWM_VAL = counted_cycles <= absolute_target;
+    assign PWM_VAL = counted_cycles < absolute_target;
     
 endmodule
