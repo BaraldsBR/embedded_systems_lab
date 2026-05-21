@@ -50,18 +50,18 @@ module encoder_adapter #(
     wire signed [POS_WIDTH-1:0] pitch_out;
     wire signed [POS_WIDTH-1:0] yaw_out;
 
-    wire debounced_pitch_A;
-    wire debounced_pitch_B;
-    wire debounced_yaw_A;
-    wire debounced_yaw_B;
+    wire debounced_pitch_enc_A;
+    wire debounced_pitch_enc_B;
+    wire debounced_yaw_enc_A;
+    wire debounced_yaw_enc_B;
 
     debouncer #(
         .DEBOUNCE_CYCLES(DEBOUNCE_CYCLES)
     ) debouncer_pitch_A (
         .clk(clk),
         .rst(signal_reset),
-        .signal(signal_pitch_A),
-        .debounced(debounced_pitch_A)
+        .signal(signal_pitch_enc_A),
+        .debounced(debounced_pitch_enc_A)
     );
 
     debouncer #(
@@ -69,8 +69,8 @@ module encoder_adapter #(
     ) debouncer_pitch_B (
         .clk(clk),
         .rst(signal_reset),
-        .signal(signal_pitch_B),
-        .debounced(debounced_pitch_B)
+        .signal(signal_pitch_enc_B),
+        .debounced(debounced_pitch_enc_B)
     );
 
     debouncer #(
@@ -78,8 +78,8 @@ module encoder_adapter #(
     ) debouncer_yaw_A (
         .clk(clk),
         .rst(signal_reset),
-        .signal(signal_yaw_A),
-        .debounced(debounced_yaw_A)
+        .signal(signal_yaw_enc_A),
+        .debounced(debounced_yaw_enc_A)
     );
 
     debouncer #(
@@ -87,8 +87,8 @@ module encoder_adapter #(
     ) debouncer_yaw_B (
         .clk(clk),
         .rst(signal_reset),
-        .signal(signal_yaw_B),
-        .debounced(debounced_yaw_B)
+        .signal(signal_yaw_enc_B),
+        .debounced(debounced_yaw_enc_B)
     );
     
     encoder #(
@@ -96,8 +96,8 @@ module encoder_adapter #(
     ) pitch_encoder (
         .rst(signal_reset),
         .clk(clk),
-        .signal_A(debounced_pitch_A),
-        .signal_B(debounced_pitch_B),
+        .signal_A(debounced_pitch_enc_A),
+        .signal_B(debounced_pitch_enc_B),
         .pos_out(pitch_out) 
     );
     
@@ -106,8 +106,8 @@ module encoder_adapter #(
     ) yaw_encoder (
         .rst(signal_reset),
         .clk(clk),
-        .signal_A(debounced_yaw_A),
-        .signal_B(debounced_yaw_B),
+        .signal_A(debounced_yaw_enc_A),
+        .signal_B(debounced_yaw_enc_B),
         .pos_out(yaw_out) 
     );
 
