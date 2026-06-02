@@ -1,0 +1,133 @@
+`timescale 1 ps / 1 ps
+`include "debouncer.v"
+`include "encoder.v"
+`include "pwm.v"
+`include "spi.v"
+
+module TopEntity(
+  input clk,
+  input btn1,
+  input btn2,
+
+  // Pitch Motor
+  input  PITCH_DIRA,
+  input  PITCH_DIRB,
+  input  PITCH_PWM_VAL,
+  output PITCH_ENC_A,
+  output PITCH_ENC_B,
+  
+  // Yaw Motor
+  input  YAW_DIRA,
+  input  YAW_DIRB,
+  input  YAW_PWM_VAL,
+  output YAW_ENC_A,
+  output YAW_ENC_B,
+
+  // SPI
+  input  SPI_PICO,
+  input  SPI_CLK,
+  input  SPI_CS,
+  output SPI_POCI
+);
+  wire        rst = btn1 || btn2;
+
+  reg  [31:0] mem;
+  wire [15:0] target_pitch = mem[31:16];
+  wire [15:0] target_yaw = mem[15:0];
+
+  pwm pitch_pwm (
+    .rst(rst),
+    .clk(clk),
+    .target_value(target_pitch),
+    .dir_A(PITCH_DIRA),
+    .dir_B(PITCH_DIRB),
+    .PWM_VAL(PITCH_PWM_VAL)
+  );
+  
+  pwm yaw_pwm (
+    .rst(rst),
+    .clk(clk),
+    .target_value(target_yaw),
+    .dir_A(YAW_DIRA),
+    .dir_B(YAW_DIRB),
+    .PWM_VAL(YAW_PWM_VAL)
+  );
+
+  wire signed [15:0] pitch_out;
+  wire signed [15:0] yaw_out;
+
+  wire debounced_pitch_enc_A;
+  wire debounced_pitch_enc_B;
+  wire debounced_yaw_enc_A;
+  wire debounced_yaw_enc_B;
+
+  debouncer bouncer_pitch_A (
+    .clk(clk),
+    .rst(rst),
+    .signal(PITCH_ENC_A),
+    .debounced(debounced_pitch_enc_A)
+  );
+
+  debouncer bouncer_pitch_B (
+    .clk(clk),
+    .rst(rst),
+    .signal(PITCH_ENC_B),
+    .debounced(debounced_pitch_enc_B)
+  );
+
+  debouncer bouncer_yaw_A (
+    .clk(clk),
+    .rst(rst),
+    .signal(YAW_ENC_A),
+    .debounced(debounced_yaw_enc_A)
+  );
+
+  debouncer bouncer_yaw_B (
+    .clk(clk),
+    .rst(rst),
+    .signal(YAW_ENC_B),
+    .debounced(debounced_yaw_enc_B)
+  );
+  
+  encoder pitch_encoder (
+    .rst(rst),
+    .clk(clk),
+    .signal_A(debounced_pitch_enc_A),
+    .signal_B(debounced_pitch_enc_B),
+    .pos_out(pitch_out) 
+  );
+  
+  encoder yaw_encoder (
+    .rst(rst),
+    .clk(clk),
+    .signal_A(debounced_yaw_enc_A),
+    .signal_B(debounced_yaw_enc_B),
+    .pos_out(yaw_out) 
+  );
+
+  wire [31:0] rx_buf;
+  wire        spi_ready;
+
+  spi spi (
+    .clk(clk),
+    .SPI_CLK(SPI_CLK),
+    .SPI_PICO(SPI_PICO),
+    .SPI_CS(SPI_CS),
+    .SPI_POCI(SPI_POCI),
+    .tx_buf({ pitch_out[15:0], yaw_out[15:0] }),
+    .ready(spi_ready),
+    .rx_buf(rx_buf)
+  );
+
+  always @(posedge clk) begin
+    if (!rst) begin
+      mem <= 32'b0;
+    end
+    else if (spi_ready) begin
+      mem <= rx_buf;
+    end
+  end
+
+
+
+endmodule
