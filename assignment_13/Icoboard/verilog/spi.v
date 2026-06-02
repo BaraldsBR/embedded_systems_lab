@@ -52,23 +52,21 @@ module spi (
         bitcnt <= 3'b000;
         bytecnt <= 2'b00;
       end
-      else if (SPI_CLK_risingedge) begin
+      else if (SPI_CS_startmessage) begin
+        ready <= 0;
+      end
+      else if (SPI_CLK_risingedge && !ready) begin
         if (bitcnt == 3'b111) begin
-          bitcnt <= 3'b000;
+          if (bytecnt == 2'b11) begin
+            ready <= 1;
+          end
           bytecnt <= bytecnt + 2'b01;
-          rx_buf <= { rx_buf[23:0], data_received[6:0], SPI_PICO_data };
-        end else begin
-          bitcnt <= bitcnt + 3'b001;
         end
-        data_received <= {data_received[5:0], SPI_PICO_data};
+
+        bitcnt <= bitcnt + 3'b001;
+        rx_buf <= { rx_buf[30:0], SPI_PICO_data };
       end
       
-      if(SPI_CS_startmessage) begin
-        ready <= 1'b0;
-      end
-      else if (bytecnt == 2'b11 && bitcnt == 3'b111) begin
-        ready <= 1'b1;
-      end
 
       // Send addition back over SPI
       if (SPI_CS_active) begin
