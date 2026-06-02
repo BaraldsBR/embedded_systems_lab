@@ -6,7 +6,7 @@ module debouncer #(
   input      signal,
   output reg debounced
 );
-  reg unsigned [$clog2(DEBOUNCE_CYCLES)-1:0] counter;
+  reg [$clog2(DEBOUNCE_CYCLES)-1:0] counter;
 
   always @(posedge clk) begin
     if (!rst) begin

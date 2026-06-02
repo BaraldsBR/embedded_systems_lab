@@ -67,8 +67,8 @@ int spiRead(int fd, unsigned speed, char *buf, unsigned count) {
 
   memset(&spi, 0, sizeof(spi));
 
-  spi.tx_buf = (unsigned)NULL;
-  spi.rx_buf = (unsigned)buf;
+  spi.tx_buf = (unsigned long)NULL;
+  spi.rx_buf = (unsigned long)buf;
   spi.len = count;
   spi.speed_hz = speed;
   spi.delay_usecs = 0;
@@ -80,14 +80,14 @@ int spiRead(int fd, unsigned speed, char *buf, unsigned count) {
   return err;
 }
 
-int spiWrite(int fd, unsigned speed, char *buf, unsigned count) {
+int spiWrite(int fd, unsigned speed, void *buf, unsigned count) {
   int err;
   struct spi_ioc_transfer spi;
 
   memset(&spi, 0, sizeof(spi));
 
-  spi.tx_buf = (unsigned)buf;
-  spi.rx_buf = (unsigned)NULL;
+  spi.tx_buf = (unsigned long)buf;
+  spi.rx_buf = (unsigned long)NULL;
   spi.len = count;
   spi.speed_hz = speed;
   spi.delay_usecs = 0;
@@ -99,7 +99,7 @@ int spiWrite(int fd, unsigned speed, char *buf, unsigned count) {
   return err;
 }
 
-int spiXfer(int fd, unsigned speed, char *txBuf, char *rxBuf, unsigned count) {
+int spiXfer(int fd, unsigned speed, void *txBuf, void *rxBuf, unsigned count) {
   int err;
   struct spi_ioc_transfer spi;
 
@@ -142,9 +142,9 @@ int main(int argc, char *argv[])
     printf("Set PWM pitch yaw: ");
     scanf("%hd %hd", &pwm_out.pitch, &pwm_out.yaw);
 
-    spiXfer(spiDevice, speed, (char)pwm_out, (char)enc_in, BYTES);
+    spiXfer(spiDevice, speed, (void*)&pwm_out, (void*)&enc_in, BYTES);
 
-    printf("Read encoder (pitch,yaw) = (%hd,%hd)", enc_in.pitch, enc_out.yaw);
+    printf("Read encoder (pitch,yaw) = (%hd,%hd)", enc_in.pitch, enc_in.yaw);
 
     spiClose(spiDevice);
 
