@@ -61,28 +61,28 @@ module TopEntity(
   wire debounced_yaw_enc_A;
   wire debounced_yaw_enc_B;
 
-  debouncer bouncer_pitch_A (
+  debouncer debouncer_pitch_A (
     .clk(clk),
     .rst(rst),
     .signal(PITCH_ENC_A),
     .debounced(debounced_pitch_enc_A)
   );
 
-  debouncer bouncer_pitch_B (
+  debouncer debouncer_pitch_B (
     .clk(clk),
     .rst(rst),
     .signal(PITCH_ENC_B),
     .debounced(debounced_pitch_enc_B)
   );
 
-  debouncer bouncer_yaw_A (
+  debouncer debouncer_yaw_A (
     .clk(clk),
     .rst(rst),
     .signal(YAW_ENC_A),
     .debounced(debounced_yaw_enc_A)
   );
 
-  debouncer bouncer_yaw_B (
+  debouncer debouncer_yaw_B (
     .clk(clk),
     .rst(rst),
     .signal(YAW_ENC_B),
@@ -120,7 +120,7 @@ module TopEntity(
   );
 
   always @(posedge clk) begin
-    if (!rst) begin
+    if (rst) begin
       mem <= 32'b0;
     end
     else if (spi_ready) begin

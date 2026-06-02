@@ -15,7 +15,7 @@ module pwm #(
     wire [15:0] absolute_target = (target_sign) ? (-target_value) : target_value;
 
     always @(posedge clk) begin
-        if(!rst) begin
+        if(rst) begin
             counted_cycles <= 0;
         end else begin
             if (counted_cycles >= PWM_CYCLE_LENGTH) begin

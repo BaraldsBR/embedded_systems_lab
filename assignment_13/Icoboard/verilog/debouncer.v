@@ -9,7 +9,7 @@ module debouncer #(
   reg [$clog2(DEBOUNCE_CYCLES)-1:0] counter;
 
   always @(posedge clk) begin
-    if (!rst) begin
+    if (rst) begin
       debounced <= signal;
       counter <= 0;
     end else begin

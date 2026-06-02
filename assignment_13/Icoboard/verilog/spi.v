@@ -4,6 +4,7 @@ module spi (
   input             SPI_PICO,
   input             SPI_CS,
   input      [31:0] tx_buf,
+  input             rst,
   output            SPI_POCI,
   output reg        ready,
   output reg [31:0] rx_buf
@@ -24,51 +25,61 @@ module spi (
   always @(posedge clk) SPI_PICOr <= {SPI_PICOr[0], SPI_PICO};
   wire SPI_PICO_data = SPI_PICOr[1];
 
-  // Receive data from SPI
   reg [2:0] bitcnt;
   reg [1:0] bytecnt;
-  reg data_received_ready;
   reg [6:0] data_received;
 
-  always @(posedge clk) begin
-    if (~SPI_CS_active) begin 
-      bitcnt <= 3'b000;
-      bytecnt <= 2'b00;
-    end
-    else if (SPI_CLK_risingedge) begin
-      if (bitcnt == 3'b111) begin
-        bitcnt <= 3'b000;
-        bytecnt <= bytecnt + 2'b01;
-        rx_buf <= { rx_buf[23:0], data_received[6:0], SPI_PICO_data };
-      end else begin
-        bitcnt <= bitcnt + 3'b001;
-      end
-      data_received <= {data_received[5:0], SPI_PICO_data};
-    end
-  end
-
-  always @(posedge clk) begin
-    if(SPI_CS_startmessage) begin
-      ready <= 1'b0;
-    end
-    else if (bytecnt == 2'b11 && bitcnt == 3'b111) begin
-      ready <= 1'b1;
-    end
-  end
-
-  // Send addition back over SPI
   reg [31:0] data_sent;
 
-  always @(posedge clk)
-    if (SPI_CS_active) begin
-      if (SPI_CS_startmessage) begin
-        data_sent <= tx_buf;
+  assign SPI_POCI = data_sent[31];
+  
+  always @(posedge clk) begin
+    if (rst) begin
+      SPI_CLKr <= 3'b0;
+      SPI_CSr <= 3'b0;
+      SPI_PICOr <= 2'b0;
+      
+      ready <= 1'b0;
+      rx_buf <= 32'b0;
+
+      bitcnt <= 3'b000;
+      bytecnt <= 2'b00;     
+      data_received <= 7'b0;
+      data_sent <= 32'b0;
+    end else begin
+      // Receive data from SPI
+      if (~SPI_CS_active) begin 
+        bitcnt <= 3'b000;
+        bytecnt <= 2'b00;
       end
-      else if (SPI_CLK_fallingedge) begin
-        data_sent <= {data_sent[30:0], 1'b0};
+      else if (SPI_CLK_risingedge) begin
+        if (bitcnt == 3'b111) begin
+          bitcnt <= 3'b000;
+          bytecnt <= bytecnt + 2'b01;
+          rx_buf <= { rx_buf[23:0], data_received[6:0], SPI_PICO_data };
+        end else begin
+          bitcnt <= bitcnt + 3'b001;
+        end
+        data_received <= {data_received[5:0], SPI_PICO_data};
+      end
+      
+      if(SPI_CS_startmessage) begin
+        ready <= 1'b0;
+      end
+      else if (bytecnt == 2'b11 && bitcnt == 3'b111) begin
+        ready <= 1'b1;
+      end
+
+      // Send addition back over SPI
+      if (SPI_CS_active) begin
+        if (SPI_CS_startmessage) begin
+          data_sent <= tx_buf;
+        end
+        else if (SPI_CLK_fallingedge) begin
+          data_sent <= {data_sent[30:0], 1'b0};
+        end
       end
     end
-
-  assign SPI_POCI = data_sent[31];
+  end
 
 endmodule

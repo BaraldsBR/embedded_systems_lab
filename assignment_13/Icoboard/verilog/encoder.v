@@ -29,7 +29,7 @@ module encoder #(
                    || (falling_B && !signal_A);
                    
     always @(posedge clk) begin
-        if(!rst) begin
+        if(rst) begin
             position <= 0;
             old_A <= signal_A;
             old_B <= signal_B;
