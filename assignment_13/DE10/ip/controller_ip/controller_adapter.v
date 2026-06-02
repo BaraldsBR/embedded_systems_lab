@@ -1,5 +1,5 @@
 `timescale 1 ps / 1 ps
-module encoder_adapter #(
+module controller_adapter #(
         parameter DATA_WIDTH = 32,
         parameter POS_WIDTH = 16,
         parameter DEBOUNCE_CYCLES = 1000
