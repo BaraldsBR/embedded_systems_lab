@@ -1,4 +1,4 @@
-`include "../spi.v" // Include YOUR entity.
+`include "../spi2.v" // Include YOUR entity.
 `timescale 1ns / 1ps  // Time unit = period, precision
 module spi_tb;
   integer     i;
@@ -14,17 +14,17 @@ module spi_tb;
   reg  SPI_CS;
   wire SPI_POCI;
 
-  spi dut ( // <- TopEntity dut (Device Under Test) UPDATE TopEntity when relevant!
+  spi_base dut ( // <- TopEntity dut (Device Under Test) UPDATE TopEntity when relevant!
     .clk(clk),
     .rst(rst),
-    .tx_buf(tx_buf),
-    .ready(ready),
+    .data_in(tx_buf),
+    .transfer_done(ready),
     .rx_buf(rx_buf),
 
-    .SPI_CLK(SPI_CLK),
-    .SPI_PICO(SPI_PICO),
-    .SPI_CS(SPI_CS),
-    .SPI_POCI(SPI_POCI)
+    .sck(SPI_CLK),
+    .mosi(SPI_PICO),
+    .cs(SPI_CS),
+    .miso(SPI_POCI)
   );
 
   // generate input signals
