@@ -1,4 +1,4 @@
-`include "../spi_base.v" // Include YOUR entity.
+`include "../spi_full.v" // Include YOUR entity.
 `timescale 1ns / 1ps  // Time unit = period, precision
 module spi_tb;
   integer     i;
@@ -6,7 +6,6 @@ module spi_tb;
   reg         clk;
   reg         rst;
   reg  [31:0] tx_buf;
-  wire        ready;
   wire [31:0] rx_buf;
 
   reg  SPI_CLK;
@@ -14,11 +13,10 @@ module spi_tb;
   reg  SPI_CS;
   wire SPI_POCI;
 
-  spi_base dut ( // <- TopEntity dut (Device Under Test) UPDATE TopEntity when relevant!
+  spi_full dut ( // <- TopEntity dut (Device Under Test) UPDATE TopEntity when relevant!
     .clk(clk),
     .rst(rst),
     .data_in(tx_buf),
-    .transfer_done(ready),
     .data_out(rx_buf),
 
     .sck(SPI_CLK),
