@@ -29,14 +29,14 @@ module spi_base (
   always @(posedge clk)
   begin
     if (rst) 
-      sck_sync <= {0, 0};
+      sck_sync <= {1'b0, 1'b0};
     else 
       sck_sync <= {sck_sync[0], sck_norm};
   end
 
   // sample edge and pushing edge
-  wire sck_se = (CPHA==0)? (sck_sync==2'b01) : (sck_sync==2'b10)
-  wire sck_pe = (CPHA==0)? (sck_sync==2'b10) : (sck_sync==2'b01)
+  wire sck_se = (CPHA==0)? (sck_sync==2'b01) : (sck_sync==2'b10);
+  wire sck_pe = (CPHA==0)? (sck_sync==2'b10) : (sck_sync==2'b01);
 
   // CS detect
   reg cs_d;

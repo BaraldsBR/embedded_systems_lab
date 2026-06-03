@@ -1,4 +1,4 @@
-`include "../spi2.v" // Include YOUR entity.
+`include "../spi_base.v" // Include YOUR entity.
 `timescale 1ns / 1ps  // Time unit = period, precision
 module spi_tb;
   integer     i;
@@ -19,7 +19,7 @@ module spi_tb;
     .rst(rst),
     .data_in(tx_buf),
     .transfer_done(ready),
-    .rx_buf(rx_buf),
+    .data_out(rx_buf),
 
     .sck(SPI_CLK),
     .mosi(SPI_PICO),
@@ -40,9 +40,9 @@ module spi_tb;
   initial begin
     forever begin
       SPI_CLK = 0;
-      #10;
+      #15;
       SPI_CLK = ~SPI_CLK;
-      #10;
+      #15;
     end
   end
 
@@ -61,12 +61,12 @@ module spi_tb;
     #10;
     rst = 0; 
     
-    #15;
+    #10;
     SPI_CS <= 0;
     SPI_PICO <= expected_rx[31];
     repeat (31) begin
       i <= i-1;
-      #20;
+      #30;
       SPI_PICO <= expected_rx[i];
     end
     #50;
