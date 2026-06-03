@@ -7,10 +7,10 @@ module spi_base (
   input mosi,                 // Master Out Slave In
   input sck,                  // SPI clock from master (SCK)  
   input cs,                   // Chip Select (Active LOW)
-  input [7:0] data_in,        // Data to transmit to master
+  input [31:0] data_in,        // Data to transmit to master
   output reg miso,            // Master In Slave Out
   output reg transfer_done,
-  output reg [7:0] data_out   // Data received from master
+  output reg [31:0] data_out   // Data received from master
 );
 
   parameter CPOL = 0;
@@ -19,8 +19,8 @@ module spi_base (
   localparam IDLE=0, TRANSFER=1, DONE=2;
   reg [1:0] state;
 
-  reg [7:0] tx_reg, rx_reg;
-  reg [2:0] bit_count;
+  reg [31:0] tx_reg, rx_reg;
+  reg [4:0] bit_count;
   
   // after this pretend code is for CPOL=0
   wire sck_norm = (CPOL==0)? sck : !sck;
@@ -57,7 +57,7 @@ module spi_base (
       miso <= 0;
       tx_reg <= 0;
       rx_reg <= 0;
-      bit_count <= 7;
+      bit_count <= 31;
       data_out <= 0;
       transfer_done <= 0;
     end else begin
@@ -69,11 +69,11 @@ module spi_base (
           if(!cs) begin
             tx_reg <= data_in;
             rx_reg <= 0;
-            bit_count <= 7;
+            bit_count <= 31;
             transfer_done <= 0;
             state <= TRANSFER;
             if(!CPHA)
-              miso <= data_in[7]; // preload
+              miso <= data_in[31]; // preload
           end
         end
 
@@ -84,7 +84,7 @@ module spi_base (
       
             // SAMPLE
             if (sck_se) begin
-              rx_reg <= {rx_reg[6:0], mosi};
+              rx_reg <= {rx_reg[30:0], mosi};
               if (bit_count==0)
                 state <= DONE;
               else
@@ -93,8 +93,8 @@ module spi_base (
 
             // SHIFT
             if (sck_pe) begin
-              tx_reg <= {tx_reg[6:0],1'b0};
-              miso   <= tx_reg[7];
+              tx_reg <= {tx_reg[30:0],1'b0};
+              miso   <= tx_reg[31];
             end
           end
         end
@@ -102,7 +102,7 @@ module spi_base (
         DONE: begin
           data_out <= rx_reg;
           transfer_done <= 1;
-          bit_count <= 7;
+          bit_count <= 31;
           tx_reg <= 0;
           rx_reg <= 0;
           state <= IDLE;

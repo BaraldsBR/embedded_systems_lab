@@ -31,9 +31,8 @@ module TopEntity(
 );
   wire        rst = btn1 || btn2;
 
-  reg  [31:0] mem;
-  wire [15:0] target_pitch = mem[31:16];
-  wire [15:0] target_yaw = mem[15:0];
+  wire [15:0] target_pitch = rx_buf[31:16];
+  wire [15:0] target_yaw = rx_buf[15:0];
 
   pwm pitch_pwm (
     .rst(rst),
@@ -110,23 +109,15 @@ module TopEntity(
 
   spi spi (
     .clk(clk),
-    .SPI_CLK(SPI_CLK),
-    .SPI_PICO(SPI_PICO),
-    .SPI_CS(SPI_CS),
-    .SPI_POCI(SPI_POCI),
-    .tx_buf({ pitch_out[15:0], yaw_out[15:0] }),
-    .ready(spi_ready),
-    .rx_buf(rx_buf)
+    .sck(SPI_CLK),
+    .mosi(SPI_PICO),
+    .cs(SPI_CS),
+    .miso(SPI_POCI),
+    .data_out({ pitch_out[15:0], yaw_out[15:0] }),
+    .transfer_done(spi_ready),
+    .data_in(rx_buf)
   );
 
-  always @(posedge clk) begin
-    if (rst) begin
-      mem <= 32'b0;
-    end
-    else if (spi_ready) begin
-      mem <= rx_buf;
-    end
-  end
 
 
 

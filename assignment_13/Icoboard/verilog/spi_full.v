@@ -1,4 +1,4 @@
-`include "spi_base.v"
+`include "../spi_base.v"
 module spi_full (
   input clk,        
   input rst,
@@ -15,6 +15,7 @@ module spi_full (
   wire [7:0] base_data_in = (transfer_count == 2'b00) ? data_in[7:0]  :
                             (transfer_count == 2'b01) ? data_in[15:8] :
                             (transfer_count == 2'b10) ? data_in[23:16] : data_in[31:24];
+  wire [7:0] base_data_out;
 
   spi_base base (
     .clk(clk),        
