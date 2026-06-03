@@ -1,83 +1,113 @@
+
+// source: https://github.com/Spurthy-S/SPI-Full-Duplex/blob/main/Source/slave.v
+
 module spi (
-  input             clk,
-  input             SPI_CLK,
-  input             SPI_PICO,
-  input             SPI_CS,
-  input      [31:0] tx_buf,
-  input             rst,
-  output            SPI_POCI,
-  output reg        ready,
-  output reg [31:0] rx_buf
+  input clk,        
+  input rst,
+  input mosi,                 // Master Out Slave In
+  input sck,                  // SPI clock from master (SCK)  
+  input cs,                   // Chip Select (Active LOW)
+  input [31:0] data_in,        // Data to transmit to master
+  output reg miso,            // Master In Slave Out
+  output reg transfer_done,
+  output reg [31:0] data_out   // Data received from master
 );
 
-  reg [2:0] SPI_CLKr;
-  always @(posedge clk) SPI_CLKr <= {SPI_CLKr[1:0], SPI_CLK};
-  wire SPI_CLK_risingedge = (SPI_CLKr[2:1] == 2'b01);
-  wire SPI_CLK_fallingedge = (SPI_CLKr[2:1] == 2'b10);
+  parameter CPOL = 0;
+  parameter CPHA = 0;
 
-  reg [2:0] SPI_CSr;
-  always @(posedge clk) SPI_CSr <= {SPI_CSr[1:0], SPI_CS};
-  wire SPI_CS_active = ~SPI_CSr[1];
-  wire SPI_CS_startmessage = (SPI_CSr[2:1] == 2'b10); // when chip gets selected
-  wire SPI_CS_endmessage = (SPI_CSr[2:1] == 2'b01); // when chip gets deselected
+  localparam IDLE=0, TRANSFER=1, DONE=2;
+  reg [1:0] state;
 
-  reg [1:0] SPI_PICOr;
-  always @(posedge clk) SPI_PICOr <= {SPI_PICOr[0], SPI_PICO};
-  wire SPI_PICO_data = SPI_PICOr[1];
-
-  reg [2:0] bitcnt;
-  reg [1:0] bytecnt;
-  reg [6:0] data_received;
-
-  reg [31:0] data_sent;
-
-  assign SPI_POCI = data_sent[31];
+  reg [31:0] tx_reg, rx_reg;
+  reg [4:0] bit_count;
   
-  always @(posedge clk) begin
-    if (rst) begin
-      SPI_CLKr <= 3'b0;
-      SPI_CSr <= 3'b0;
-      SPI_PICOr <= 2'b0;
-      
-      ready <= 1'b0;
-      rx_buf <= 32'b0;
+  // after this pretend code is for CPOL=0
+  wire sck_norm = (CPOL==0)? sck : !sck;
 
-      bitcnt <= 3'b000;
-      bytecnt <= 2'b00;     
-      data_received <= 7'b0;
-      data_sent <= 32'b0;
-    end else begin
-      // Receive data from SPI
-      if (~SPI_CS_active) begin 
-        bitcnt <= 3'b000;
-        bytecnt <= 2'b00;
-      end
-      else if (SPI_CS_startmessage) begin
-        ready <= 0;
-      end
-      else if (SPI_CLK_risingedge && !ready) begin
-        if (bitcnt == 3'b111) begin
-          if (bytecnt == 2'b11) begin
-            ready <= 1;
-          end
-          bytecnt <= bytecnt + 2'b01;
-        end
-
-        bitcnt <= bitcnt + 3'b001;
-        rx_buf <= { rx_buf[30:0], SPI_PICO_data };
-      end
-      
-
-      // Send addition back over SPI
-      if (SPI_CS_active) begin
-        if (SPI_CS_startmessage) begin
-          data_sent <= tx_buf;
-        end
-        else if (SPI_CLK_fallingedge) begin
-          data_sent <= {data_sent[30:0], 1'b0};
-        end
-      end
-    end
+  reg [1:0] sck_sync;
+  always @(posedge clk)
+  begin
+    if (rst) 
+      sck_sync <= {1'b0, 1'b0};
+    else 
+      sck_sync <= {sck_sync[0], sck_norm};
   end
 
+  // sample edge and pushing edge
+  wire sck_se = (CPHA==0)? (sck_sync==2'b01) : (sck_sync==2'b10);
+  wire sck_pe = (CPHA==0)? (sck_sync==2'b10) : (sck_sync==2'b01);
+
+  // CS detect
+  reg cs_d;
+  always @(posedge clk)
+  begin
+    if(rst) 
+      cs_d <= 1;
+    else 
+      cs_d <= cs;
+  end
+  
+  wire cs_falling = (cs_d==1 && cs==0);
+
+  always @(posedge clk) 
+  begin
+    if(rst) begin
+      state <= IDLE;
+      miso <= 0;
+      tx_reg <= 0;
+      rx_reg <= 0;
+      bit_count <= 31;
+      data_out <= 0;
+      transfer_done <= 0;
+    end else begin
+      
+      transfer_done <= 0;
+    
+      case(state)
+        IDLE: begin
+          if(!cs) begin
+            tx_reg <= data_in;
+            rx_reg <= 0;
+            bit_count <= 31;
+            transfer_done <= 0;
+            state <= TRANSFER;
+            if(!CPHA)
+              miso <= data_in[31]; // preload
+          end
+        end
+
+        TRANSFER: begin
+          if (cs)
+            state <= IDLE;
+          else begin
+      
+            // SAMPLE
+            if (sck_se) begin
+              rx_reg <= {rx_reg[30:0], mosi};
+              if (bit_count==0)
+                state <= DONE;
+              else
+                bit_count <= bit_count-1;
+            end
+
+            // SHIFT
+            if (sck_pe) begin
+              tx_reg <= {tx_reg[30:0],1'b0};
+              miso   <= tx_reg[31];
+            end
+          end
+        end
+
+        DONE: begin
+          data_out <= rx_reg;
+          transfer_done <= 1;
+          bit_count <= 31;
+          tx_reg <= 0;
+          rx_reg <= 0;
+          state <= IDLE;
+        end
+      endcase 
+    end
+  end
 endmodule
