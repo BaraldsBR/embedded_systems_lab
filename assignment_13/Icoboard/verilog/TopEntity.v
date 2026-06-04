@@ -10,18 +10,18 @@ module TopEntity(
   input btn2,
 
   // Pitch Motor
-  input  PITCH_DIRA,
-  input  PITCH_DIRB,
-  input  PITCH_PWM_VAL,
-  output PITCH_ENC_A,
-  output PITCH_ENC_B,
+  input  PITCH_ENC_A,
+  input  PITCH_ENC_B,
+  output PITCH_DIRA,
+  output PITCH_DIRB,
+  output PITCH_PWM_VAL,
   
   // Yaw Motor
-  input  YAW_DIRA,
-  input  YAW_DIRB,
-  input  YAW_PWM_VAL,
-  output YAW_ENC_A,
-  output YAW_ENC_B,
+  input  YAW_ENC_A,
+  input  YAW_ENC_B,
+  output YAW_DIRA,
+  output YAW_DIRB,
+  output YAW_PWM_VAL,
 
   // SPI
   input  SPI_PICO,
@@ -108,17 +108,15 @@ module TopEntity(
   wire        spi_ready;
 
   spi spi (
+    .rst(rst),
     .clk(clk),
     .sck(SPI_CLK),
     .mosi(SPI_PICO),
     .cs(SPI_CS),
     .miso(SPI_POCI),
-    .data_out({ pitch_out[15:0], yaw_out[15:0] }),
+    .data_out(rx_buf),
     .transfer_done(spi_ready),
-    .data_in(rx_buf)
+    .data_in({ pitch_out[15:0], yaw_out[15:0] })
   );
-
-
-
 
 endmodule

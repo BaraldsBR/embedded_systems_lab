@@ -8,7 +8,7 @@ module spi (
   input sck,                  // SPI clock from master (SCK)  
   input cs,                   // Chip Select (Active LOW)
   input [31:0] data_in,        // Data to transmit to master
-  output reg miso,            // Master In Slave Out
+  output miso,            // Master In Slave Out
   output reg transfer_done,
   output reg [31:0] data_out   // Data received from master
 );
@@ -38,6 +38,9 @@ module spi (
   wire sck_se = (CPHA==0)? (sck_sync==2'b01) : (sck_sync==2'b10);
   wire sck_pe = (CPHA==0)? (sck_sync==2'b10) : (sck_sync==2'b01);
 
+  // assign miso as end of transmission buffer
+  assign miso = tx_reg[31];
+
   // CS detect
   reg cs_d;
   always @(posedge clk)
@@ -54,7 +57,6 @@ module spi (
   begin
     if(rst) begin
       state <= IDLE;
-      miso <= 0;
       tx_reg <= 0;
       rx_reg <= 0;
       bit_count <= 31;
@@ -72,8 +74,6 @@ module spi (
             bit_count <= 31;
             transfer_done <= 0;
             state <= TRANSFER;
-            if(!CPHA)
-              miso <= data_in[31]; // preload
           end
         end
 
@@ -94,7 +94,6 @@ module spi (
             // SHIFT
             if (sck_pe) begin
               tx_reg <= {tx_reg[30:0],1'b0};
-              miso   <= tx_reg[31];
             end
           end
         end
