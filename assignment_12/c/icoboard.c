@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
     end_time = time_time();
 
     printf("counter: %d, read value: %d, total time: %f \n", counter, response, end_time - start_time);
-    spiClose(spiDevice);
+    
 
     counter = 0;
 
@@ -180,5 +180,7 @@ int main(int argc, char *argv[])
       if ((counter - 1) != response) printf("value mismatch\n");
       counter++;
     }
+
+    spiClose(spiDevice);
     return 0;
 }
