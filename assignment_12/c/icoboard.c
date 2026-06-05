@@ -4,7 +4,7 @@
  * Public Domain
 */
 
-
+#include <sys/time.h> 
 #include <fcntl.h>
 #include <getopt.h>
 #include <linux/spi/spidev.h>
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 
     start_time = time_time();
 
-    spiXfer(spiDevice, speed, (void*)&counter, (void*)&_, BYTES);
+    spiXfer(spiDevice, speed, (void*)&counter, (void*)&response, BYTES);
 
     end_time = time_time();
 
