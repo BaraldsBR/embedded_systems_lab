@@ -4,21 +4,25 @@
 module TopEntity(
   input clk,
   input btn1,
-  input btn2,
 
+  output led1,
   // SPI
   input  SPI_PICO,
   input  SPI_CLK,
   input  SPI_CS,
-  output SPI_POCI
+  output SPI_POCI,
+  output YAW_DIRA,
+  output YAW_DIRB
 );
-  wire        rst = btn1 || btn2;
+  assign led1 = btn1;
   wire        spi_ready;
   wire [31:0] rx_to_tx;
 
   spi spi (
     .clk(clk),
+    .rst(btn1 || SPI_CS),
     .sck(SPI_CLK),
+    .state_out({YAW_DIRA, YAW_DIRB}),
     .mosi(SPI_PICO),
     .cs(SPI_CS),
     .miso(SPI_POCI),

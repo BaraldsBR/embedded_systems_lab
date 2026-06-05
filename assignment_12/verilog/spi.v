@@ -8,7 +8,8 @@ module spi (
   input sck,                  // SPI clock from master (SCK)  
   input cs,                   // Chip Select (Active LOW)
   input [31:0] data_in,        // Data to transmit to master
-  output reg miso,            // Master In Slave Out
+  output [1:0] state_out,
+  output miso,            // Master In Slave Out
   output reg transfer_done,
   output reg [31:0] data_out   // Data received from master
 );
@@ -18,25 +19,28 @@ module spi (
 
   localparam IDLE=0, TRANSFER=1, DONE=2;
   reg [1:0] state;
-
+  assign state_out = state;
   reg [31:0] tx_reg, rx_reg;
   reg [4:0] bit_count;
   
   // after this pretend code is for CPOL=0
   wire sck_norm = (CPOL==0)? sck : !sck;
 
-  reg [1:0] sck_sync;
+  reg [2:0] sck_sync;
   always @(posedge clk)
   begin
     if (rst) 
-      sck_sync <= {1'b0, 1'b0};
+      sck_sync <= {1'b0, 1'b0, 1'b0};
     else 
-      sck_sync <= {sck_sync[0], sck_norm};
+      sck_sync <= {sck_sync[1:0], sck_norm};
   end
 
   // sample edge and pushing edge
-  wire sck_se = (CPHA==0)? (sck_sync==2'b01) : (sck_sync==2'b10);
-  wire sck_pe = (CPHA==0)? (sck_sync==2'b10) : (sck_sync==2'b01);
+  wire sck_se = (CPHA==0)? (sck_sync[2:1]==2'b01) : (sck_sync[2:1]==2'b10);
+  wire sck_pe = (CPHA==0)? (sck_sync[2:1]==2'b10) : (sck_sync[2:1]==2'b01);
+
+  // assign miso as end of transmission buffer
+  assign miso = tx_reg[31];
 
   // CS detect
   reg cs_d;
@@ -54,11 +58,10 @@ module spi (
   begin
     if(rst) begin
       state <= IDLE;
-      miso <= 0;
       tx_reg <= 0;
       rx_reg <= 0;
       bit_count <= 31;
-      data_out <= 0;
+      data_out <= 32'h1;
       transfer_done <= 0;
     end else begin
       
@@ -72,8 +75,6 @@ module spi (
             bit_count <= 31;
             transfer_done <= 0;
             state <= TRANSFER;
-            if(!CPHA)
-              miso <= data_in[31]; // preload
           end
         end
 
@@ -94,7 +95,6 @@ module spi (
             // SHIFT
             if (sck_pe) begin
               tx_reg <= {tx_reg[30:0],1'b0};
-              miso   <= tx_reg[31];
             end
           end
         end
