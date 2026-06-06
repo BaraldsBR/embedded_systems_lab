@@ -1,113 +1,85 @@
+module spi #(
+    parameter WIDTH = 32
+)(
+  input                  clk,        
+  input                  rst,
+  input                  mosi,           
+  input                  sck,           
+  input                  cs,             
+  input      [WIDTH-1:0] data_in,
 
-// source: https://github.com/Spurthy-S/SPI-Full-Duplex/blob/main/Source/slave.v
-
-module spi (
-  input clk,        
-  input rst,
-  input mosi,                 // Master Out Slave In
-  input sck,                  // SPI clock from master (SCK)  
-  input cs,                   // Chip Select (Active LOW)
-  input [31:0] data_in,        // Data to transmit to master
-  output [1:0] state_out,
-  output miso,            // Master In Slave Out
-  output reg transfer_done,
-  output reg [31:0] data_out   // Data received from master
+  output                 miso,
+  output reg             new_data,
+  output reg [WIDTH-1:0] data_out
 );
 
-  parameter CPOL = 0;
-  parameter CPHA = 0;
-
-  localparam IDLE=0, TRANSFER=1, DONE=2;
-  reg [1:0] state;
-  assign state_out = state;
-  reg [31:0] tx_reg, rx_reg;
-  reg [4:0] bit_count;
-  
-  // after this pretend code is for CPOL=0
-  wire sck_norm = (CPOL==0)? sck : !sck;
-
-  reg [2:0] sck_sync;
-  always @(posedge clk)
-  begin
-    if (rst) 
-      sck_sync <= {1'b0, 1'b0, 1'b0};
-    else 
-      sck_sync <= {sck_sync[1:0], sck_norm};
-  end
-
-  // sample edge and pushing edge
-  wire sck_se = (CPHA==0)? (sck_sync[2:1]==2'b01) : (sck_sync[2:1]==2'b10);
-  wire sck_pe = (CPHA==0)? (sck_sync[2:1]==2'b10) : (sck_sync[2:1]==2'b01);
-
-  // assign miso as end of transmission buffer
-  assign miso = tx_reg[31];
-
-  // CS detect
-  reg cs_d;
-  always @(posedge clk)
-  begin
-    if(rst) 
-      cs_d <= 1;
-    else 
-      cs_d <= cs;
-  end
-  
-  wire cs_falling = (cs_d==1 && cs==0);
-
-  always @(posedge clk) 
-  begin
-    if(rst) begin
-      state <= IDLE;
-      tx_reg <= 0;
-      rx_reg <= 0;
-      bit_count <= 31;
-      data_out <= 32'h1;
-      transfer_done <= 0;
+  // stabilise cs and sck with 2 ffs 
+  reg [1:0] cs_reg;
+  reg [2:0] sck_reg;
+  always @(posedge clk) begin
+    if (rst) begin
+      cs_reg  <= 2'b11;
+      sck_reg <= 3'b000;
     end else begin
-      
-      transfer_done <= 0;
-    
-      case(state)
+      cs_reg  <= {cs_reg[0], cs};
+      sck_reg <= {sck_reg[1:0], sck};
+    end
+  end
+  wire sck_re = (sck_reg==3'b011);
+  wire sck_fe = (sck_reg==3'b100);
+  wire cs_syn = cs_reg[1];
+
+  // FSM
+  localparam IDLE     = 1'b0;
+  localparam TRANSFER = 1'b1;
+  reg state;
+  reg next_state;
+  always @(posedge clk) begin
+    if (rst) state <= IDLE;
+    else     state <= next_state;
+  end
+
+  // next state block
+  always @(*) begin
+    case (state)
+      IDLE:     next_state = (!cs_syn) ? TRANSFER : IDLE;
+      TRANSFER: next_state = (cs_syn)  ? IDLE : TRANSFER;
+      default:  next_state = IDLE;
+    endcase
+  end
+
+  // datapath sortof
+  reg [WIDTH-1:0] tx_reg, rx_reg;
+
+  always @(posedge clk) begin
+    if (rst) begin
+      tx_reg   <= 0;
+      rx_reg   <= 0;
+      data_out <= 0;
+      new_data <= 1'b0;
+    end else begin
+      case (state)
         IDLE: begin
-          if(!cs) begin
+          if (cs_syn) 
+            new_data <= 0;
+          else if (!cs_syn)
             tx_reg <= data_in;
-            rx_reg <= 0;
-            bit_count <= 31;
-            transfer_done <= 0;
-            state <= TRANSFER;
-          end
         end
 
         TRANSFER: begin
-          if (cs)
-            state <= IDLE;
-          else begin
-      
-            // SAMPLE
-            if (sck_se) begin
-              rx_reg <= {rx_reg[30:0], mosi};
-              if (bit_count==0)
-                state <= DONE;
-              else
-                bit_count <= bit_count-1;
-            end
-
-            // SHIFT
-            if (sck_pe) begin
-              tx_reg <= {tx_reg[30:0],1'b0};
-            end
+          if (!cs_syn) begin
+            rx_reg <= (sck_re)? {rx_reg[WIDTH-2:0], mosi} : rx_reg;
+            tx_reg <= (sck_fe)? {tx_reg[WIDTH-2:0], 1'b0} : tx_reg;  
+          end else if (cs_syn) begin
+            new_data <= 1;
+            data_out <= rx_reg;
           end
         end
 
-        DONE: begin
-          data_out <= rx_reg;
-          transfer_done <= 1;
-          bit_count <= 31;
-          tx_reg <= 0;
-          rx_reg <= 0;
-          state <= IDLE;
-        end
-      endcase 
+        default: ;
+      endcase
     end
   end
+
+  assign miso = tx_reg[WIDTH-1];
 endmodule
