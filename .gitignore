@@ -1,3 +1,4 @@
 **/*.vvp
 **/*.vcd
 **/*.DS_Store
+**/.venv
