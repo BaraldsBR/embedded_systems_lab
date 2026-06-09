@@ -13,9 +13,11 @@
 #define BYTES 4
 #define PI 3.14159
 
-#define PITCH_ENCODER_STEPS 1000
-#define YAW_ENCODER_STEPS 1000
+#define PITCH_ENCODER_STEPS 8000
+#define YAW_ENCODER_STEPS 6000
 
+#define PITCH_PWM_STEPS 2500
+#define YAW_PWM_STEPS 2500
 
 int main(int argc, char *argv[])
 {
@@ -60,8 +62,8 @@ int main(int argc, char *argv[])
 
     controller_out = advanceController(controller_in);
 
-    pwm_out.pitch = controller_out.pitch_out;
-    pwm_out.yaw = controller_out.yaw_out;
+    pwm_out.pitch = controller_out.pitch_out * PITCH_PWM_STEPS;
+    pwm_out.yaw = controller_out.yaw_out * YAW_PWM_STEPS;
 
     time_loop_end = time_time();
 
