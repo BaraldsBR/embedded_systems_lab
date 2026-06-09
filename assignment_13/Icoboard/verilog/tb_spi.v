@@ -1,72 +1,79 @@
-`include "spi.v" // Include YOUR entity.
-`timescale 1ns / 1ps  // Time unit = period, precision
+`include "spi.v"
+`timescale 10ns / 10ns 
+
 module tb_spi;
-  integer     i;
-  reg  [31:0] expected_rx = 32'hAAAAAAAA;
-  reg         clk;
-  reg         rst;
-  reg  [31:0] tx_buf;
-  wire        transfer_done;
-  wire [31:0] rx_buf;
+  parameter WIDTH = 8;
+  parameter Tck  = 2;
+  parameter Tsck = 20*Tck;
 
-  reg  SPI_CLK;
-  reg  SPI_PICO;
-  reg  SPI_CS;
-  wire SPI_POCI;
+  // spi side
+  reg              clk;
+  reg              rst;
+  reg  [WIDTH-1:0] data_in;   
+  wire [WIDTH-1:0] data_out;
+  wire             new_data;
 
-  spi dut ( // <- TopEntity dut (Device Under Test) UPDATE TopEntity when relevant!
+  // data side
+  reg   cs;
+  reg   sck;
+  reg   mosi;
+  wire  miso;
+
+  spi #(
+    .WIDTH(WIDTH)
+  ) dut ( 
     .clk(clk),
     .rst(rst),
-    .data_in(tx_buf),
-    .transfer_done(transfer_done),
-    .data_out(rx_buf),
-    .sck(SPI_CLK),
-    .mosi(SPI_PICO),
-    .cs(SPI_CS),
-    .miso(SPI_POCI)
+    .data_in(data_in),
+    .new_data(new_data),
+    .data_out(data_out),
+    .sck(sck),
+    .mosi(mosi),
+    .cs(cs),
+    .miso(miso)
   );
 
-  // generate input signals
-  initial begin
-    forever begin
-      clk = 0;
-      #1;
-      clk = ~clk;
-      #1;
-    end
+  integer i = (WIDTH-1);
+  reg [WIDTH-1:0] mosi_parallel;
+
+  initial forever begin
+    clk <= 0;
+    #(Tck/2);
+    clk <= 1;
+    #(Tck/2);
   end
 
-
-// Start of your testbench script
   initial begin
-    $dumpfile("signals.vcd");  // Name of the signal dump file
-    $dumpvars(0, tb_spi);  // Signals to dump
+    $dumpfile("signals.vcd"); 
+    $dumpvars(0, tb_spi);
+    
+    cs <= 1;
+    sck <= 0;
+    mosi <= 0;
+    data_in <= 8'hAA;
+    mosi_parallel <= 8'hAA;
 
-    SPI_CLK <= 0;
-    SPI_CS <= 1;
-    tx_buf = 32'hAAAAAAAA;
-    i = 31;
-    rst = 0;
-    #10;
-    rst = 1;
-    #10;
-    rst = 0; 
-    
-    #10;
-    SPI_CS <= 0;
-    repeat (32) begin
-      SPI_PICO <= expected_rx[i];
-      i <= i-1;
-      SPI_CLK = 0;
-      #8;
-      SPI_CLK = ~SPI_CLK;
-      #8;
+    rst <= 1;
+    #(Tsck/2);
+    rst <= 0; 
+    #(Tsck);
+
+    cs <= 0;
+    #(Tsck);
+  
+    repeat (WIDTH) begin
+      mosi <= mosi_parallel[i];
+      #(Tsck/2);
+      sck <= 1;
+      #(Tsck/2);
+      sck <= 0;
+      i = i-1;
     end
-    #150;
-    SPI_CS <= 1;
-    SPI_CLK = 0;
-    #200;
+
+    #(Tsck);
+    cs <= 1;
+    #(Tsck);
     
-    $finish;  // end simulation
+    $finish;
   end
 endmodule

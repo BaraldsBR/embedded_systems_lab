@@ -1,5 +1,5 @@
 module debouncer #(
-  parameter DEBOUNCE_CYCLES = 50
+  parameter DEBOUNCE_CYCLES = 10
 ) (
   input      clk,
   input      rst,

@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
     spiDevice = spiOpen(1, speed, 0);
     if (spiDevice < 0) return 2;
 
+    spiXfer(spiDevice, speed, (void*)&counter, (void*)&response, BYTES);
 
     start_time = time_time();
 
@@ -159,27 +160,35 @@ int main(int argc, char *argv[])
 
     printf("Single transfer, read value: %d, total time: %f \n", response, end_time - start_time);
 
-    counter = 0;
+    // counter = 0;
 
-    start_time = time_time();
+    // start_time = time_time();
 
-    while(counter < 1000000) {
-      spiXfer(spiDevice, speed, (void*)&counter, (void*)&response, BYTES);
-      counter++;
-    }
+    // while(counter < 1000000) {
+    //   spiXfer(spiDevice, speed, (void*)&counter, (void*)&response, BYTES);
+    //   counter++;
+    // }
 
-    end_time = time_time();
+    // end_time = time_time();
 
-    printf("counter: %d, read value: %d, total time: %f \n", counter, response, end_time - start_time);
+    // printf("counter: %d, read value: %d, total time: %f \n", counter, response, end_time - start_time);
     
 
     counter = 0;
 
-    while(counter < 100) {
-      spiXfer(spiDevice, speed, (void*)&counter, (void*)&response, BYTES);
-      if ((counter - 1) != response) printf("value mismatch\n");
-      counter++;
-    }
+    spi_content_t test_out;
+
+    test_out.pitch = 0x0102;  
+    test_out.yaw   = 0x0304;    
+
+    spiXfer(spiDevice, speed, (void*)&test_out, (void*)&response, BYTES);
+    spiXfer(spiDevice, speed, (void*)&test_out, (void*)&response, BYTES);
+
+    // while(counter < 100) {
+    //   spiXfer(spiDevice, speed, (void*)&counter, (void*)&response, BYTES);
+    //   if ((counter - 1) != response) printf("value mismatch\n");
+    //   counter++;
+    // }
 
     spiClose(spiDevice);
     return 0;

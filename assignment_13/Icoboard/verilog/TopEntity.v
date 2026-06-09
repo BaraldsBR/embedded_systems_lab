@@ -7,7 +7,7 @@
 module TopEntity(
   input clk,
   input btn1,
-  input btn2,
+  output led1,
 
   // Pitch Motor
   input  PITCH_ENC_A,
@@ -29,10 +29,12 @@ module TopEntity(
   input  SPI_CS,
   output SPI_POCI
 );
-  wire        rst = btn1 || btn2;
+  wire        rst = btn1;
+  assign      led1 = rst;
 
-  wire [15:0] target_pitch = rx_buf[31:16];
-  wire [15:0] target_yaw = rx_buf[15:0];
+  // unscramble
+  wire [15:0] target_pitch = { rx_buf[23:16], rx_buf[31:24] };
+  wire [15:0] target_yaw = { rx_buf[7:0], rx_buf[15:8] };
 
   pwm pitch_pwm (
     .rst(rst),
@@ -105,7 +107,12 @@ module TopEntity(
   );
 
   wire [31:0] rx_buf;
-  wire        spi_ready;
+  wire [31:0] tx_buf = {
+    pitch_out[7:0],
+    pitch_out[15:8],
+    yaw_out[7:0],
+    yaw_out[15:8]
+  };
 
   spi spi (
     .rst(rst),
@@ -115,8 +122,8 @@ module TopEntity(
     .cs(SPI_CS),
     .miso(SPI_POCI),
     .data_out(rx_buf),
-    .transfer_done(spi_ready),
-    .data_in({ pitch_out[15:0], yaw_out[15:0] })
+    .new_data(),
+    .data_in(tx_buf)
   );
 
 endmodule
