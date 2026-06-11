@@ -13,12 +13,8 @@
 #define BYTES 4
 #define PI 3.14159
 
-#define PITCH_ENCODER_STEPS 8000
-#define YAW_ENCODER_STEPS 6000
-
 #define PITCH_PWM_STEPS 5000
 #define YAW_PWM_STEPS 5000
-
 
 void calibrate_jiwy(int spiDevice, 
                     spi_content_t* pos_min, 
