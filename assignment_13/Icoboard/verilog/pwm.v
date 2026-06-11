@@ -1,5 +1,5 @@
 module pwm #(
-    parameter PWM_CYCLE_LENGTH = 2500
+    parameter PWM_CYCLE_LENGTH = 5000
 ) (
     input rst,
     input clk,
@@ -9,7 +9,7 @@ module pwm #(
     output dir_B,
     output PWM_VAL
 );
-    localparam PWM_MAX = PWM_CYCLE_LENGTH / 2;
+    localparam PWM_MAX = PWM_CYCLE_LENGTH / 4;
     
     reg  [11:0] counted_cycles;
     wire        target_zero = (target_value == 16'b0);

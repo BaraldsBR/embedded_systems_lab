@@ -139,15 +139,15 @@ void XXModelInitialize_parameters(void)
 	xx_P[2] = 0.05;		/* PositionControllerPan\PID1\tauD */
 	xx_P[3] = 0.17;		/* PositionControllerPan\PID1\beta */
 	xx_P[4] = 9.0;		/* PositionControllerPan\PID1\tauI */
-	xx_P[5] = -0.99;		/* PositionControllerPan\SignalLimiter2\minimum */
-	xx_P[6] = 0.99;		/* PositionControllerPan\SignalLimiter2\maximum */
+	xx_P[5] = -0.25;		/* PositionControllerPan\SignalLimiter2\minimum */
+	xx_P[6] = 0.25;		/* PositionControllerPan\SignalLimiter2\maximum */
 	xx_P[7] = 0.0;		/* PositionControllerTilt\corrGain\K */
 	xx_P[8] = 1.6;		/* PositionControllerTilt\PID1\kp */
 	xx_P[9] = 0.05;		/* PositionControllerTilt\PID1\tauD */
 	xx_P[10] = 0.001;		/* PositionControllerTilt\PID1\beta */
 	xx_P[11] = 10.5;		/* PositionControllerTilt\PID1\tauI */
-	xx_P[12] = -0.99;		/* PositionControllerTilt\SignalLimiter2\minimum */
-	xx_P[13] = 0.99;		/* PositionControllerTilt\SignalLimiter2\maximum */
+	xx_P[12] = -0.25;		/* PositionControllerTilt\SignalLimiter2\minimum */
+	xx_P[13] = 0.25;		/* PositionControllerTilt\SignalLimiter2\maximum */
 
 }
 #if (14 > 8192) && defined _MSC_VER
