@@ -17,18 +17,18 @@
 #define YAW_ENCODER_STEPS 1000
 
 void advanceTestInputs(int step, double* pitch, double* yaw) {
-  if (step > 800) {
+  if (step > 8000) {
     *pitch = 0;
     *yaw = 0;
-  } else if (step > 600)
+  } else if (step > 6000)
   {
     *pitch = 1000 * 2 * PI / PITCH_ENCODER_STEPS;
     *yaw = -1000 * 2 * PI / YAW_ENCODER_STEPS;
-  } else if (step > 400)
+  } else if (step > 4000)
   {
     *pitch = -200 * 2 * PI / PITCH_ENCODER_STEPS;
     *yaw = -200 * 2 * PI / YAW_ENCODER_STEPS;
-  } else if (step > 200)
+  } else if (step > 2000)
   {
     *pitch = -1000 * 2 * PI / PITCH_ENCODER_STEPS;
     *yaw = 1000 * 2 * PI / YAW_ENCODER_STEPS;
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 
   printf("start time;end time;elapsed utime;curr pitch;curr yaw;pwm pitch;pwm yaw\n");
   
-  for (step = 0; step < 1000; step++) {
+  for (step = 0; step < 10000; step++) {
     time_loop_start = time_time();
 
     controller_out = advanceController(controller_in);
@@ -67,17 +67,17 @@ int main(int argc, char *argv[])
     time_loop_end = time_time();
 
     elapsed_usec = time_loop_end - time_loop_start;
-
+    
     printf("%ld;%ld;%ld;%f;%f;%f;%f\n",
-      time_loop_start,
-      time_loop_end,
+      time_loop_start % 1000000000,
+      time_loop_end % 1000000000,
       elapsed_usec,
       controller_in.pitch_current_position,
       controller_in.yaw_current_position,
       controller_out.pitch_out,
       controller_out.yaw_out);
 
-    usleep(10000 - elapsed_usec);
+    precise_sleep(10000 - elapsed_usec);
   }
 
   return 0;

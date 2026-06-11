@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     time_loop_end = time_time();
 
     elapsed_usec = time_loop_end - time_loop_start;
-    usleep(10000 - elapsed_usec);
+    precise_sleep(10000 - elapsed_usec);
   }
 
   spiClose(spiDevice);
