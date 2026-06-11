@@ -101,7 +101,6 @@ int main(int argc, char *argv[])
 
   startController(controller_in);
 
-  int counter = 0;
   for (;;) {
     time_loop_start = time_time();
 
