@@ -9,8 +9,8 @@ typedef struct _controller_input {
 } controller_input;
 
 typedef struct _controller_output {
-  double pitch_out;
-  double yaw_out;
+  double pitch;
+  double yaw;
 } controller_output;
 
 controller_output startController(controller_input input);

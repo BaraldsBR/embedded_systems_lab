@@ -20,8 +20,8 @@ controller_output startController(controller_input input) {
 
   controller_output out;
 
-  out.pitch_out = outputs[0];
-  out.yaw_out = outputs[1];
+  out.pitch = outputs[0];
+  out.yaw = outputs[1];
 
   return out;
 }
@@ -36,8 +36,8 @@ controller_output advanceController(controller_input input) {
     
   controller_output out;
 
-  out.pitch_out = outputs[0];
-  out.yaw_out = outputs[1];
+  out.pitch = outputs[0];
+  out.yaw = outputs[1];
 
   return out;
 }
