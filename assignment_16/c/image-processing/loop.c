@@ -2,6 +2,7 @@
  * - https://superuser.com/questions/1462693/how-to-stream-screen-to-remote-computer-with-gstreamer
  * - https://github.com/agrechnev/gst_app_tutorial/blob/master/video3.cpp
  */
+#include "loop.h"
 
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
@@ -10,11 +11,13 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-#include "loop.h"
+#include "../constants.h"
 #include "image-processing.h"
 
+#if STREAM_IMAGE == 1
 static GstElement *stream_pipeline, *stream_source;
 static bool send_data = true, stream_started = false;
+#endif
 
 static GstFlowReturn new_sample (GstElement *sink) {
   printf("new_sample() ran\n");
@@ -62,6 +65,7 @@ static GstFlowReturn new_sample (GstElement *sink) {
       horizontal_center = horizontal_center / mass;
     }
 
+#if STREAM_IMAGE == 1
     if (send_data) {
       if (!stream_started) {
         stream_started = true;
@@ -81,6 +85,7 @@ static GstFlowReturn new_sample (GstElement *sink) {
 
       gst_app_src_push_buffer(GST_APP_SRC(stream_source), buffer_out);
     }
+#endif
 
     printf("horizontal center: %u, vertical center: %u", horizontal_center, vertical_center);
     gst_sample_unref (sample);
@@ -124,16 +129,6 @@ bus_call (GstBus     *bus,
   return TRUE;
 }
 
-/// Callback called when the pipeline wants more data
-void startFeed(GstElement *source, guint size) {
-  send_data = true;
-}
-
-/// Callback called when the pipeline wants no more data for now
-void stopFeed(GstElement *source) {
-  send_data = true;
-}
-
 void* imageProcessingLoop (void* args)
 {
   GMainLoop *loop;
@@ -149,25 +144,26 @@ void* imageProcessingLoop (void* args)
 
   GstCaps *caps;
 
-  // /* Initialisation */
+  /* Initialisation */
   gst_init (NULL, NULL);
 
   loop = g_main_loop_new (NULL, FALSE);
-  
-  // /* Check input arguments */
+
+
+  /* Define capabilities */
+  caps = gst_caps_new_simple ("video/x-raw",
+                              "format", G_TYPE_STRING, "YUY2",
+                              "width", G_TYPE_INT, IMAGE_WIDTH,
+                              "height", G_TYPE_INT, IMAGE_HEIGHT,
+                              "framerate", GST_TYPE_FRACTION, VIDEO_FPS, 1,
+                              NULL);
 
   /* Create gstreamer elements */
-  process_pipeline   = gst_pipeline_new ("");
-  stream_pipeline    = gst_pipeline_new ("");
-
   /* Image Processing */
-  source      = gst_element_factory_make ("autovideosrc",       "webcam-source");
+  process_pipeline   = gst_pipeline_new ("");
+
+  source      = gst_element_factory_make ("v4l2src",       "webcam-source");
   sink        = gst_element_factory_make ("appsink",       "app-sink");
-  // /* Streaming */
-  stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
-  stream_jpegenc = gst_element_factory_make ("jpegenc",    "stream-jpegenc");
-  stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
-  stream_sink    = gst_element_factory_make ("udpsink",    "stream-sink");
 
   if (!process_pipeline || !source || !sink) {
     g_printerr ("One processing element could not be created. Exiting.\n");
@@ -181,48 +177,52 @@ void* imageProcessingLoop (void* args)
 
   /* Set up the process_pipeline */
 
-  // g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
+  g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
   g_object_set (G_OBJECT (sink), "emit-signals", TRUE, NULL);
   g_signal_connect (G_OBJECT (sink), "new-sample", G_CALLBACK(new_sample), NULL);
-
-  /* Set up the stream_pipeline */
-
-  g_object_set (G_OBJECT (stream_sink), "host", STREAM_IP, NULL);
-  g_object_set (G_OBJECT (stream_sink), "port", STREAM_PORT, NULL);
-  g_signal_connect(stream_source, "need-data", G_CALLBACK(startFeed), NULL);
-  g_signal_connect(stream_source, "enough-data", G_CALLBACK(stopFeed), NULL);
-
+  
   /* we add message handlers */
   process_bus = gst_pipeline_get_bus (GST_PIPELINE (process_pipeline));
   process_bus_watch_id = gst_bus_add_watch (process_bus, bus_call, loop);
   gst_object_unref (process_bus);
 
-  stream_bus = gst_pipeline_get_bus (GST_PIPELINE (stream_pipeline));
-  stream_bus_watch_id = gst_bus_add_watch (stream_bus, bus_call, loop);
-  gst_object_unref (stream_bus);
 
-  /* Define capabilities */
-  caps = gst_caps_new_simple ("video/x-raw",
-                              "format", G_TYPE_STRING, "YUY2",
-                              "width", G_TYPE_INT, IMAGE_WIDTH,
-                              "height", G_TYPE_INT, IMAGE_HEIGHT,
-                              "framerate", GST_TYPE_FRACTION, VIDEO_FPS, 1,
-                              NULL);
-
-  /* we add all elements into the process_pipeline */
+  /* we add all elements into the pipeline */
   gst_bin_add_many (GST_BIN (process_pipeline),
                     source, sink, NULL);
 
   gst_element_link_filtered (source, sink, caps);
-
   
+#if STREAM_IMAGE == 1
+  /* Repeat for Streaming */
+  stream_pipeline    = gst_pipeline_new ("");
+  stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
+  stream_jpegenc = gst_element_factory_make ("jpegenc",    "stream-jpegenc");
+  stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
+  stream_sink    = gst_element_factory_make ("udpsink",    "stream-sink");
+  
+  if (!stream_pipeline || !stream_source || !stream_jpegenc || !stream_rtpenc || !stream_sinksink) {
+    g_printerr ("One streaming element could not be created. Exiting.\n");
+    return NULL;
+  }
+    
+  g_object_set (G_OBJECT (stream_sink), "host", STREAM_IP, NULL);
+  g_object_set (G_OBJECT (stream_sink), "port", STREAM_PORT, NULL);
+  g_signal_connect(stream_source, "need-data", G_CALLBACK(startFeed), NULL);
+  g_signal_connect(stream_source, "enough-data", G_CALLBACK(stopFeed), NULL);
+  
+  stream_bus = gst_pipeline_get_bus (GST_PIPELINE (stream_pipeline));
+  stream_bus_watch_id = gst_bus_add_watch (stream_bus, bus_call, loop);
+  gst_object_unref (stream_bus);
+
   gst_bin_add_many (GST_BIN (stream_pipeline),
-                    stream_source, stream_jpegenc,
-                    stream_rtpenc, stream_sink, NULL);
+                  stream_source, stream_jpegenc,
+                  stream_rtpenc, stream_sink, NULL);
 
   gst_element_link_filtered (stream_source, stream_jpegenc, caps);
   gst_element_link (stream_jpegenc, stream_rtpenc);
   gst_element_link (stream_rtpenc, stream_sink);
+#endif
 
   gst_caps_unref(caps);
 
@@ -236,19 +236,24 @@ void* imageProcessingLoop (void* args)
   g_main_loop_run (loop);
 
   /* Out of the main loop, clean up nicely */
-  g_print ("Returned, stopped recording\n");
-  gst_element_set_state (process_pipeline, GST_STATE_NULL);
-  gst_element_set_state (stream_pipeline, GST_STATE_NULL);
-
+  
   g_print ("Deleting process_pipeline\n");
+  
+  gst_element_set_state (process_pipeline, GST_STATE_NULL);
+  
   gst_object_unref (GST_OBJECT (process_pipeline));
   g_source_remove (process_bus_watch_id);
   g_main_loop_unref (loop);
-
+  
+#if STREAM_IMAGE == 1
   g_print ("Deleting stream_pipeline\n");
+  
+  gst_element_set_state (stream_pipeline, GST_STATE_NULL);
+  
   gst_object_unref (GST_OBJECT (stream_pipeline));
   g_source_remove (stream_bus_watch_id);
   g_main_loop_unref (loop);
+#endif
 
   return NULL;
 }

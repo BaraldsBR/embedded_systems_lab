@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#include "../constants.h"
+
 void* processImageChunk(void* args) {
   thread_processing_request_t req = *((thread_processing_request_t*)args);
   thread_processing_response_t* res = malloc(sizeof(thread_processing_response_t));

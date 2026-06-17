@@ -3,13 +3,6 @@
 
 #include <stdint.h>
 
-#define MIN_Y 50
-#define MAX_Y 75
-#define MIN_U 50
-#define MAX_U 75
-#define MIN_V 50
-#define MAX_V 75
-
 typedef struct _yuyv_packet_t {
     uint8_t Y1;
     uint8_t U;

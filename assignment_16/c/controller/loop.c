@@ -10,13 +10,7 @@
 #include "spi.h"
 #include "time.h"
 #include "controller.h"
-
-#define SPEED 1000000
-#define BYTES 4
-#define PI 3.14159
-
-#define PITCH_PWM_STEPS 5000
-#define YAW_PWM_STEPS 5000
+#include "../constants.h"
 
 void calibrate_jiwy(int spiDevice, 
                     spi_content_t* pos_min, 
@@ -34,7 +28,7 @@ void calibrate_jiwy(int spiDevice,
   pwm_out.yaw   = -200;
   do {
     pos_in_old = pos_in;
-    spiXfer(spiDevice, SPEED, (void*)&pwm_out, (void*)&pos_in, BYTES);
+    spiXfer(spiDevice, SPI_SPEED, (void*)&pwm_out, (void*)&pos_in, SPI_BYTES_PER_TRANSFER);
     precise_sleep(5000);
   } while (pos_in.pitch != pos_in_old.pitch || pos_in.yaw != pos_in_old.yaw);
 
@@ -48,7 +42,7 @@ void calibrate_jiwy(int spiDevice,
   pwm_out.yaw   = 200;  
   do {
     pos_in_old = pos_in;
-    spiXfer(spiDevice, SPEED, (void*)&pwm_out, (void*)&pos_in, BYTES);
+    spiXfer(spiDevice, SPI_SPEED, (void*)&pwm_out, (void*)&pos_in, SPI_BYTES_PER_TRANSFER);
     precise_sleep(5000);
   } while (pos_in.pitch != pos_in_old.pitch || pos_in.yaw != pos_in_old.yaw);
 
@@ -57,7 +51,7 @@ void calibrate_jiwy(int spiDevice,
   // turn off
   pwm_out.pitch = 0;
   pwm_out.yaw = 0;
-  spiXfer(spiDevice, SPEED, (void*)&pwm_out, (void*)&pos_in, BYTES);
+  spiXfer(spiDevice, SPI_SPEED, (void*)&pwm_out, (void*)&pos_in, SPI_BYTES_PER_TRANSFER);
 
   return;
 }
@@ -90,7 +84,7 @@ void* controllerLoop(void* args)
   long elapsed_usec = 0;
 
   int spiDevice;
-  spiDevice = spiOpen(1, SPEED, 0);
+  spiDevice = spiOpen(1, SPI_SPEED, 0);
   if (spiDevice < 0) return NULL;
 
   spi_content_t pos_min;
@@ -103,7 +97,7 @@ void* controllerLoop(void* args)
   for (;;) {
     time_loop_start = time_time();
 
-    spiXfer(spiDevice, SPEED, (void*)&pwm_out, (void*)&pos_in, BYTES);
+    spiXfer(spiDevice, SPI_SPEED, (void*)&pwm_out, (void*)&pos_in, SPI_BYTES_PER_TRANSFER);
     
     time_loop_spi = time_time();
         
