@@ -1,35 +1,37 @@
 /* appsrc + stream addapted mainly from:
- * - https://amarghosh.blogspot.com/2012/01/gstreamer-appsrc-in-action.html 
  * - https://superuser.com/questions/1462693/how-to-stream-screen-to-remote-computer-with-gstreamer
  * - https://github.com/agrechnev/gst_app_tutorial/blob/master/video3.cpp
  */
 
 #include <gst/gst.h>
+#include <gst/app/gstappsrc.h>
 #include <glib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <pthread.h>
 
 #include "loop.h"
+#include "image-processing.h"
 
-static GstAppSrc* stream_source;
+static GstElement* stream_source;
 static bool send_data = true;
 
 static GstFlowReturn new_sample (GstElement *sink) {
+  printf("new_sample() ran\n");
   GstSample *sample;
-  GstBuffer *buffer;
+  GstBuffer *buffer_in;
   yuyv_packet_t *packed_image;
-  u_int32_t vertical_center = 0, horizontal_center = 0, mass = 0;
+  uint32_t vertical_center = 0, horizontal_center = 0, mass = 0;
 
   /* Retrieve the buffer */
   g_signal_emit_by_name (sink, "pull-sample", &sample);
 
   if (sample) {
-    buffer = gst_sample_get_buffer (sample);
+    buffer_in = gst_sample_get_buffer (sample);
     packed_image = (yuyv_packet_t*) g_malloc(sizeof(yuyv_packet_t) * IMAGE_WIDTH * IMAGE_HEIGHT / 2);
 
     size_t buffer_size = IMAGE_WIDTH * IMAGE_HEIGHT * 2;
-    gst_buffer_extract(buffer, 0, (void*)packed_image, buffer_size);
+    gst_buffer_extract(buffer_in, 0, (void*)packed_image, buffer_size);
 
     pthread_t subthread[SUBTHREADS];
     thread_processing_request_t req[SUBTHREADS];
@@ -44,7 +46,7 @@ static GstFlowReturn new_sample (GstElement *sink) {
     }
     
     for (int i = 0; i < SUBTHREADS; i++) {
-      pthread_join(subthread[i], &((void*)res));
+      pthread_join(subthread[i], (void**)&res);
       mass += res->total_mass;
       vertical_center += res->total_vertical_sum;
       horizontal_center += res->total_horizontal_sum;
@@ -61,17 +63,20 @@ static GstFlowReturn new_sample (GstElement *sink) {
     }
 
     if (send_data) {
-      GstBuffer *stream_buffer;
+      size_t buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * 2;
 
-      stream_buffer = gst_buffer_new();
-      GST_BUFFER_MALLOCDATA(stream_buffer) = (guint8*) packed_image;
-      GST_BUFFER_SIZE(stream_buffer) = IMAGE_HEIGHT * IMAGE_WIDTH * 2;
-      GST_BUFFER_DATA(stream_buffer) = GST_BUFFER_MALLOCDATA(stream_buffer);
+      GstBuffer *buffer_out = gst_buffer_new_and_alloc(buffer_size);
+      GstMapInfo map_out;
+      
+      gst_buffer_map(buffer_out, &map_out, GST_MAP_WRITE);
+      memcpy(map_out.data, packed_image, buffer_size);
+      gst_buffer_unmap(buffer_out, &map_out);
+      buffer_out->pts = buffer_in->pts;
 
-      gst_app_src_push_buffer(stream_src, stream_buffer);
+      gst_app_src_push_buffer(GST_APP_SRC(stream_source), buffer_out);
     }
 
-    printf("horizontal center: %ld, vertical center: %ld", horizontal_center, vertical_center);
+    printf("horizontal center: %u, vertical center: %u", horizontal_center, vertical_center);
     gst_sample_unref (sample);
     return GST_FLOW_OK;
   }
@@ -128,7 +133,7 @@ void* imageProcessingLoop (void* args)
   GMainLoop *loop;
 
   GstElement *pipeline, *source, *sink;
-  // stream_src is static so it can accesed from the new_sample function
+  // stream_source is static so it can accesed from the new_sample function
   GstElement *stream_jpegenc, *stream_rtpenc, *stream_sink;
   GstCaps *caps;
   GstBus *bus;
@@ -147,7 +152,7 @@ void* imageProcessingLoop (void* args)
   /* Image Processing */
   source      = gst_element_factory_make ("v4l2src",       "webcam-source");
   sink        = gst_element_factory_make ("appsink",       "app-sink");
-  /* Streaming */
+  // /* Streaming */
   stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
   stream_jpegenc = gst_element_factory_make ("jpegenc",    "stream-jpegenc");
   stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
@@ -155,7 +160,7 @@ void* imageProcessingLoop (void* args)
 
   if (!pipeline || !source || !sink) {
     g_printerr ("One element could not be created. Exiting.\n");
-    return -1;
+    return NULL;
   }
 
   /* Set up the pipeline */
@@ -214,5 +219,5 @@ void* imageProcessingLoop (void* args)
   g_source_remove (bus_watch_id);
   g_main_loop_unref (loop);
 
-  return 0;
+  return NULL;
 }
