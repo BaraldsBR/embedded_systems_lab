@@ -65,7 +65,7 @@ pos_rad pos2rad(spi_content_t pos,
   return out;
 }
 
-extern controller_input controller_in = {0, 0, 0, 0};
+controller_input controller_in = {0, 0, 0, 0};
 
 void* controllerLoop(void* args)
 {

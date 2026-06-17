@@ -13,6 +13,9 @@
 
 #include "../constants.h"
 #include "image-processing.h"
+#include "pixel2rad.h"
+
+#include "../controller/loop.h"
 
 #if STREAM_IMAGE == 1
 static GstElement *stream_pipeline, *stream_source;
@@ -25,6 +28,9 @@ static GstFlowReturn new_sample (GstElement *sink) {
   GstBuffer *buffer_in;
   yuyv_packet_t *packed_image;
   uint32_t vertical_center = 0, horizontal_center = 0, mass = 0;
+
+  double curr_pitch = controller_in.pitch_current_position;
+  double curr_yaw = controller_in.yaw_current_position;
 
   /* Retrieve the buffer */
   g_signal_emit_by_name (sink, "pull-sample", &sample);
@@ -64,6 +70,9 @@ static GstFlowReturn new_sample (GstElement *sink) {
       vertical_center = vertical_center / mass;
       horizontal_center = horizontal_center / mass;
     }
+
+    controller_in.pitch_target_position = curr_pitch + pixel2rad(vertical_center, IMAGE_HEIGHT, VERTICAL_FOV);
+    controller_in.yaw_target_position = curr_yaw + pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
 
 #if STREAM_IMAGE == 1
     if (send_data) {

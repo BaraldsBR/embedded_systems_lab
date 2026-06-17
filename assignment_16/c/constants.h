@@ -21,14 +21,16 @@
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
 #define VIDEO_FPS 30
+#define HORIZONTAL_FOV 44
+#define VERTICAL_FOV 33
 
 /* Image Processing Config */
 #define SUBTHREADS 4
-#define MIN_Y 50
-#define MAX_Y 75
-#define MIN_U 50
-#define MAX_U 75
-#define MIN_V 50
-#define MAX_V 75
+#define MIN_Y 18
+#define MAX_Y 149
+#define MIN_U 65
+#define MAX_U 115
+#define MIN_V 80
+#define MAX_V 130
 
 #endif
