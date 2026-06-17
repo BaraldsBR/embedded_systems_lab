@@ -100,9 +100,6 @@ void* controllerLoop(void* args)
     spiXfer(spiDevice, SPI_SPEED, (void*)&pwm_out, (void*)&pos_in, SPI_BYTES_PER_TRANSFER);
     
     time_loop_spi = time_time();
-        
-    printf("current spi usec: %ld\n", time_loop_spi - time_loop_start);
-    printf("previous elapsed usec: %ld\n\n", elapsed_usec);
 
     pos_in_rad = pos2rad(pos_in, pos_min, pos_max);
     controller_in.pitch_current_position = pos_in_rad.pitch;

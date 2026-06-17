@@ -71,8 +71,13 @@ static GstFlowReturn new_sample (GstElement *sink) {
       horizontal_center = horizontal_center / mass;
     }
 
-    controller_in.pitch_target_position = curr_pitch + pixel2rad(vertical_center, IMAGE_HEIGHT, VERTICAL_FOV);
+    double new_target_pitch = curr_pitch + pixel2rad(vertical_center, IMAGE_HEIGHT, VERTICAL_FOV);
+    double new_target_yaw = curr_yaw + pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
+
+    controller_in.pitch_target_position = new_target_pitch;
     controller_in.yaw_target_position = curr_yaw + pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
+
+    printf("new_target_pitch: %f, new_target_yaw: %f \n", new_target_pitch, new_target_yaw);
 
 #if STREAM_IMAGE == 1
     if (send_data) {
@@ -179,11 +184,6 @@ void* imageProcessingLoop (void* args)
     return NULL;
   }
 
-  if (!stream_pipeline || !stream_source || !stream_jpegenc || !stream_rtpenc || !stream_sink) {
-    g_printerr ("One streaming element could not be created. Exiting.\n");
-    return NULL;
-  }
-
   /* Set up the process_pipeline */
 
   g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
@@ -210,15 +210,29 @@ void* imageProcessingLoop (void* args)
   stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
   stream_sink    = gst_element_factory_make ("udpsink",    "stream-sink");
   
-  if (!stream_pipeline || !stream_source || !stream_jpegenc || !stream_rtpenc || !stream_sinksink) {
-    g_printerr ("One streaming element could not be created. Exiting.\n");
+  if (!stream_pipeline) {
+    g_printerr ("stream_pipeline could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_source) {
+    g_printerr ("stream_source element could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_jpegenc) {
+    g_printerr ("stream_jpegenc element could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_rtpenc) {
+    g_printerr ("stream_rtpenc element could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_sink) {
+    g_printerr ("stream_sink element could not be created. Exiting.\n");
     return NULL;
   }
     
   g_object_set (G_OBJECT (stream_sink), "host", STREAM_IP, NULL);
   g_object_set (G_OBJECT (stream_sink), "port", STREAM_PORT, NULL);
-  g_signal_connect(stream_source, "need-data", G_CALLBACK(startFeed), NULL);
-  g_signal_connect(stream_source, "enough-data", G_CALLBACK(stopFeed), NULL);
   
   stream_bus = gst_pipeline_get_bus (GST_PIPELINE (stream_pipeline));
   stream_bus_watch_id = gst_bus_add_watch (stream_bus, bus_call, loop);

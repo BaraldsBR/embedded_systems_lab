@@ -13,8 +13,8 @@
 
 /* GStreamer Config */
 #define DEVICE_NAME "/dev/video0"
-#define STREAM_IMAGE 1
-#define STREAM_IP "145.126.52.203"
+#define STREAM_IMAGE 0
+#define STREAM_IP "10.0.40.13"
 #define STREAM_PORT 5001
 
 /* Camera Config */
@@ -26,11 +26,11 @@
 
 /* Image Processing Config */
 #define SUBTHREADS 4
-#define MIN_Y 18
-#define MAX_Y 149
-#define MIN_U 65
-#define MAX_U 115
-#define MIN_V 80
-#define MAX_V 130
+#define MIN_Y 16
+#define MAX_Y 155
+#define MIN_U 64
+#define MAX_U 140
+#define MIN_V 64
+#define MAX_V 105
 
 #endif
