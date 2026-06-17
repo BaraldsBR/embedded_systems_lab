@@ -1,28 +1,24 @@
-/* Shows lum values from webcam */
+/* appsrc + stream addapted mainly from:
+ * - https://amarghosh.blogspot.com/2012/01/gstreamer-appsrc-in-action.html 
+ * - https://superuser.com/questions/1462693/how-to-stream-screen-to-remote-computer-with-gstreamer
+ * - https://github.com/agrechnev/gst_app_tutorial/blob/master/video3.cpp
+ */
 
 #include <gst/gst.h>
 #include <glib.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <pthread.h>
 
-#define IMAGE_WIDTH 640
-#define IMAGE_HEIGHT 480
-#define VIDEO_FPS 30
+#include "loop.h"
 
-#define MIN_Y 50
-#define MAX_Y 75
-#define MIN_Cb 50
-#define MAX_Cb 75
-#define MIN_Cr 50
-#define MAX_Cr 75
-
-#define CAMERA_DEVICE /dev/video0
+static GstAppSrc* stream_source;
+static bool send_data = true;
 
 static GstFlowReturn new_sample (GstElement *sink) {
   GstSample *sample;
   GstBuffer *buffer;
-  u_int8_t dest_Y[IMAGE_WIDTH * IMAGE_HEIGHT];
-  u_int8_t dest_Cb[IMAGE_WIDTH * IMAGE_HEIGHT / 4];
-  u_int8_t dest_Cr[IMAGE_WIDTH * IMAGE_HEIGHT / 4];
+  yuyv_packet_t *packed_image;
   u_int32_t vertical_center = 0, horizontal_center = 0, mass = 0;
 
   /* Retrieve the buffer */
@@ -30,44 +26,49 @@ static GstFlowReturn new_sample (GstElement *sink) {
 
   if (sample) {
     buffer = gst_sample_get_buffer (sample);
+    packed_image = (yuyv_packet_t*) g_malloc(sizeof(yuyv_packet_t) * IMAGE_WIDTH * IMAGE_HEIGHT / 2);
 
-    size_t size_Y = IMAGE_WIDTH * IMAGE_HEIGHT;
-    gst_buffer_extract(buffer, 0, (void*)dest_Y, size_Y);
+    size_t buffer_size = IMAGE_WIDTH * IMAGE_HEIGHT * 2;
+    gst_buffer_extract(buffer, 0, (void*)packed_image, buffer_size);
 
-    size_t size_Cb = IMAGE_WIDTH * IMAGE_HEIGHT / 4;
-    size_t offset_Cb = IMAGE_WIDTH * IMAGE_HEIGHT;
-    gst_buffer_extract(buffer, offset_Cb, (void*)dest_Cb, size_Cb);
-
-    size_t size_Cr = IMAGE_WIDTH * IMAGE_HEIGHT / 4;
-    size_t offset_Cr = IMAGE_WIDTH * IMAGE_HEIGHT * 5 / 4;
-    gst_buffer_extract(buffer, offset_Cr, (void*)dest_Cr, size_Cr);
-
-    for (size_t row = 0; row < IMAGE_HEIGHT; row++)
-    {
-      for (size_t col = 0; col < IMAGE_WIDTH; col++)
-      {
-        int pos_Y = row * IMAGE_WIDTH + col;
-        int pos_C = ((row / 2) * (IMAGE_WIDTH / 2)) + (col / 2); 
-        if (dest_Y[pos_Y] > MIN_Y
-         && dest_Y[pos_Y] < MAX_Y
-         && dest_Cb[pos_C] > MIN_Cb
-         && dest_Cb[pos_C] < MAX_Cb
-         && dest_Cr[pos_C] > MIN_Cr
-         && dest_Cr[pos_C] < MAX_Cr
-        ) {
-          vertical_center += row;
-          horizontal_center += col;
-          mass++;
-        }
-      }
+    pthread_t subthread[SUBTHREADS];
+    thread_processing_request_t req[SUBTHREADS];
+    thread_processing_response_t* res;
+  
+    for (int i = 0; i < SUBTHREADS; i++) {
+      req[i].image = packed_image;
+      req[i].starting_row = i * IMAGE_HEIGHT / SUBTHREADS;
+      req[i].row_count = IMAGE_HEIGHT / SUBTHREADS;
+      req[i].row_size = IMAGE_WIDTH;
+      pthread_create(&subthread[i], NULL, processImageChunk, &req[i]);
+    }
+    
+    for (int i = 0; i < SUBTHREADS; i++) {
+      pthread_join(subthread[i], &((void*)res));
+      mass += res->total_mass;
+      vertical_center += res->total_vertical_sum;
+      horizontal_center += res->total_horizontal_sum;
+      free(res);
     }
 
-    if (mass == 0) {
+    if (mass < IMAGE_WIDTH * IMAGE_HEIGHT / 100) {
       vertical_center = IMAGE_HEIGHT / 2;
-      horizontal_center = IMAGE_WIDTH / 2;  
+      horizontal_center = IMAGE_WIDTH / 2;
+      printf("low green\n");
     } else {
       vertical_center = vertical_center / mass;
       horizontal_center = horizontal_center / mass;
+    }
+
+    if (send_data) {
+      GstBuffer *stream_buffer;
+
+      stream_buffer = gst_buffer_new();
+      GST_BUFFER_MALLOCDATA(stream_buffer) = (guint8*) packed_image;
+      GST_BUFFER_SIZE(stream_buffer) = IMAGE_HEIGHT * IMAGE_WIDTH * 2;
+      GST_BUFFER_DATA(stream_buffer) = GST_BUFFER_MALLOCDATA(stream_buffer);
+
+      gst_app_src_push_buffer(stream_src, stream_buffer);
     }
 
     printf("horizontal center: %ld, vertical center: %ld", horizontal_center, vertical_center);
@@ -112,31 +113,45 @@ bus_call (GstBus     *bus,
   return TRUE;
 }
 
+/// Callback called when the pipeline wants more data
+void startFeed(GstElement *source, guint size) {
+  send_data = true;
+}
 
-int main (int argc, char *argv[])
+/// Callback called when the pipeline wants no more data for now
+void stopFeed(GstElement *source) {
+  send_data = false;
+}
+
+void* imageProcessingLoop (void* args)
 {
   GMainLoop *loop;
 
   GstElement *pipeline, *source, *sink;
+  // stream_src is static so it can accesed from the new_sample function
+  GstElement *stream_jpegenc, *stream_rtpenc, *stream_sink;
   GstCaps *caps;
   GstBus *bus;
   guint bus_watch_id;
 
   // /* Initialisation */
-  gst_init (&argc, &argv);
+  gst_init (NULL, NULL);
 
   loop = g_main_loop_new (NULL, FALSE);
   
   // /* Check input arguments */
-  if (argc != 2) {
-    g_printerr ("Usage: %s <Device name>\n", argv[0]);
-    return -1;
-  }
 
   /* Create gstreamer elements */
   pipeline   = gst_pipeline_new ("");
-  source     = gst_element_factory_make ("v4l2src",       "webcam-source");
-  sink       = gst_element_factory_make ("appsink",       "app-sink");
+
+  /* Image Processing */
+  source      = gst_element_factory_make ("v4l2src",       "webcam-source");
+  sink        = gst_element_factory_make ("appsink",       "app-sink");
+  /* Streaming */
+  stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
+  stream_jpegenc = gst_element_factory_make ("jpegenc",    "stream-jpegenc");
+  stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
+  stream_sink    = gst_element_factory_make ("udpsink",    "stream-sink");
 
   if (!pipeline || !source || !sink) {
     g_printerr ("One element could not be created. Exiting.\n");
@@ -145,11 +160,14 @@ int main (int argc, char *argv[])
 
   /* Set up the pipeline */
 
-  /* we set the input and output filename to the source element */
-  g_object_set (G_OBJECT (source), "device", argv[1], NULL);
+  g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
   g_object_set (G_OBJECT (sink), "emit-signals", TRUE, NULL);
   g_signal_connect (G_OBJECT (sink), "new-sample", G_CALLBACK(new_sample), NULL);
 
+  g_object_set (G_OBJECT (stream_sink), "host", STREAM_IP, NULL);
+  g_object_set (G_OBJECT (stream_sink), "port", STREAM_PORT, NULL);
+  g_signal_connect(stream_source, "need-data", G_CALLBACK(startFeed), NULL);
+  g_signal_connect(stream_source, "enough-data", G_CALLBACK(stopFeed), NULL);
 
   /* we add a message handler */
   bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
@@ -165,11 +183,16 @@ int main (int argc, char *argv[])
                               NULL);
 
   /* we add all elements into the pipeline */
-  /* file-source | ogg-demuxer | vorbis-decoder | converter | alsa-output */
   gst_bin_add_many (GST_BIN (pipeline),
-                    source, sink, NULL);
+                    source, sink,
+                    stream_source, stream_jpegenc,
+                    stream_rtpenc, stream_sink, NULL);
 
   gst_element_link_filtered (source, sink, caps);
+  
+  gst_element_link_filtered (stream_source, stream_jpegenc, caps);
+  gst_element_link (stream_jpegenc, stream_rtpenc);
+  gst_element_link (stream_rtpenc, stream_sink);
 
   gst_caps_unref(caps);
 
