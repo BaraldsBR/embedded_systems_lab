@@ -131,7 +131,7 @@ void startFeed(GstElement *source, guint size) {
 
 /// Callback called when the pipeline wants no more data for now
 void stopFeed(GstElement *source) {
-  send_data = false;
+  send_data = true;
 }
 
 void* imageProcessingLoop (void* args)
@@ -161,7 +161,7 @@ void* imageProcessingLoop (void* args)
   stream_pipeline    = gst_pipeline_new ("");
 
   /* Image Processing */
-  source      = gst_element_factory_make ("v4l2src",       "webcam-source");
+  source      = gst_element_factory_make ("autovideosrc",       "webcam-source");
   sink        = gst_element_factory_make ("appsink",       "app-sink");
   // /* Streaming */
   stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
@@ -174,14 +174,14 @@ void* imageProcessingLoop (void* args)
     return NULL;
   }
 
-  if (!stream_pipeline || !stream_source || !stream_jpegenc || !stream_rtpenc || !stream_sinksink) {
+  if (!stream_pipeline || !stream_source || !stream_jpegenc || !stream_rtpenc || !stream_sink) {
     g_printerr ("One streaming element could not be created. Exiting.\n");
     return NULL;
   }
 
   /* Set up the process_pipeline */
 
-  g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
+  // g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
   g_object_set (G_OBJECT (sink), "emit-signals", TRUE, NULL);
   g_signal_connect (G_OBJECT (sink), "new-sample", G_CALLBACK(new_sample), NULL);
 

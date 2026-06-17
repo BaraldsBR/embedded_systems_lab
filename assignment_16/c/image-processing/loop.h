@@ -2,7 +2,7 @@
 #define IMAGE_PROCESSING_LOOP
 
 #define DEVICE_NAME "/dev/video0"
-#define STREAM_IP "145.126.52.203"
+#define STREAM_IP "172.20.10.13"
 #define STREAM_PORT 5001
 
 #define IMAGE_WIDTH 640
