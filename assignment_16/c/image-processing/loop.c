@@ -23,7 +23,6 @@ static bool send_data = true, stream_started = false;
 #endif
 
 static GstFlowReturn new_sample (GstElement *sink) {
-  printf("new_sample() ran\n");
   GstSample *sample;
   GstBuffer *buffer_in;
   yuyv_packet_t *packed_image;
@@ -32,10 +31,14 @@ static GstFlowReturn new_sample (GstElement *sink) {
   double curr_pitch = controller_in.pitch_current_position;
   double curr_yaw = controller_in.yaw_current_position;
 
+  printf("\n");
+  printf("Current pitch,yaw: %f, %f\n", curr_pitch, curr_yaw);
+
   /* Retrieve the buffer */
   g_signal_emit_by_name (sink, "pull-sample", &sample);
 
   if (sample) {
+    printf("New frame received\n");
     buffer_in = gst_sample_get_buffer (sample);
     packed_image = (yuyv_packet_t*) g_malloc(sizeof(yuyv_packet_t) * IMAGE_WIDTH * IMAGE_HEIGHT / 2);
 
@@ -65,19 +68,26 @@ static GstFlowReturn new_sample (GstElement *sink) {
     if (mass < IMAGE_WIDTH * IMAGE_HEIGHT / 100) {
       vertical_center = IMAGE_HEIGHT / 2;
       horizontal_center = IMAGE_WIDTH / 2;
-      printf("low green\n");
+      printf("Low green\n");
     } else {
       vertical_center = vertical_center / mass;
       horizontal_center = horizontal_center / mass;
     }
 
-    double new_target_pitch = curr_pitch + pixel2rad(vertical_center, IMAGE_HEIGHT, VERTICAL_FOV);
-    double new_target_yaw = curr_yaw + pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
+    printf("Ball pos (ver,hor): %u, %u pixel\n", vertical_center, horizontal_center);
+
+    double pitch_diff = pixel2rad(vertical_center, IMAGE_HEIGHT, VERTICAL_FOV);
+    double yaw_diff = pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
+
+    printf("Pos diff (pitch,yaw): %f, %f rad\n", pitch_diff, yaw_diff);
+
+    double new_target_pitch = curr_pitch + pitch_diff;
+    double new_target_yaw = curr_yaw + yaw_diff;
+
+    printf("Target pos (pitch,yaw): %f, %f rad\n", new_target_pitch, new_target_yaw);
 
     controller_in.pitch_target_position = new_target_pitch;
-    controller_in.yaw_target_position = curr_yaw + pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
-
-    printf("new_target_pitch: %f, new_target_yaw: %f \n", new_target_pitch, new_target_yaw);
+    controller_in.yaw_target_position = new_target_yaw;
 
 #if STREAM_IMAGE == 1
     if (send_data) {
