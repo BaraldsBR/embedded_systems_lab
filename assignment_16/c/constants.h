@@ -13,7 +13,7 @@
 
 /* GStreamer Config */
 #define DEVICE_NAME "/dev/video0"
-#define STREAM_IMAGE 0
+#define STREAM_IMAGE 1
 #define STREAM_IP "10.0.40.13"
 #define STREAM_PORT 5001
 

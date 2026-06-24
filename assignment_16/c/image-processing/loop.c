@@ -68,6 +68,26 @@ static GstFlowReturn new_sample (GstElement *sink) {
     if (mass < IMAGE_WIDTH * IMAGE_HEIGHT / 100) {
       vertical_center = IMAGE_HEIGHT / 2;
       horizontal_center = IMAGE_WIDTH / 2;
+#if STREAM_IMAGE == 1
+      int total_cols = IMAGE_WIDTH / 2;
+      for (int i = vertical_center - 4; i <= vertical_center + 4 && i < IMAGE_HEIGHT; i++) {
+        for (int j = (horizontal_center - 4)/2; j <= (horizontal_center + 4)/2 && j < total_cols; j++) {
+          int curr_packet = i * total_cols + j;
+          if (i == vertical_center - 4 || i == vertical_center + 4 || j == (horizontal_center - 4)/2 || j == (horizontal_center + 4)/2) {
+            packed_image[curr_packet].Y1 = (uint8_t) 128;
+            packed_image[curr_packet].Y2 = (uint8_t) 128;
+            packed_image[curr_packet].U = (uint8_t) 0;
+            packed_image[curr_packet].V = (uint8_t) 255;
+          } else {
+            packed_image[curr_packet].Y1 = (uint8_t) 128;
+            packed_image[curr_packet].Y2 = (uint8_t) 128;
+            packed_image[curr_packet].U = (uint8_t) 255;
+            packed_image[curr_packet].V = (uint8_t) 0;
+          }
+        }
+      }
+#endif
+      
       printf("Low green\n");
     } else {
       vertical_center = vertical_center / mass;

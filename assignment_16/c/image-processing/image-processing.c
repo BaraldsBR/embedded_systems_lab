@@ -29,12 +29,12 @@ void* processImageChunk(void* args) {
         res->total_vertical_sum += 2 * row;
         res->total_horizontal_sum += col_pair * 4 + 1;
         res->total_mass += 2;
-        
+#if STREAM_IMAGE == 1
         req.image[row * total_col_pairs + col_pair].Y1 = (uint8_t) 128;
-        req.image[row * total_col_pairs + col_pair].Y1 = (uint8_t) 128;
+        req.image[row * total_col_pairs + col_pair].Y2 = (uint8_t) 128;
         req.image[row * total_col_pairs + col_pair].U = (uint8_t) 255;
         req.image[row * total_col_pairs + col_pair].V = (uint8_t) 255;
-        
+#endif
       }
     }
   }
