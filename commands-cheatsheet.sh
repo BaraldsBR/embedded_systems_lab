@@ -1,6 +1,3 @@
-## install gstreamer
-sudo apt-get install libgstreamer1.0-dev gstreamer1.0-plugins-good gstreamer1.0-tools
-
 ## make test avi
 gst-launch-1.0 -v -e v4l2src device=/dev/video0 ! jpegenc ! image/jpeg,width=640,height=480,framerate=30/1 ! avimux ! filesink location=file.avi
 
@@ -28,10 +25,7 @@ gst-launch-1.0 -e -v udpsrc port=5001 ! application/x-rtp, encoding-name=JPEG,pa
 
 ## compiling for Mac OS
 export PKG_CONFIG_PATH=/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig
-
 export PATH=/Library/Frameworks/GStreamer.framework/Versions/1.0/bin:$PATH
 
 ## Compiling 
-gcc main.c image-processing/*.c controller/*.c controller/20-sim/*.c -lm $$(pkg-config --cflags --libs gstreamer-1.0 gstreamer-app-1.0)
-
-gcc $(find . -name '*.c') $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-app-1.0)
+gcc $(find . -name '*.c') -lm $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-app-1.0)
