@@ -3,9 +3,15 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#include "../constants.h"
+
 void* processImageChunk(void* args) {
   thread_processing_request_t req = *((thread_processing_request_t*)args);
   thread_processing_response_t* res = malloc(sizeof(thread_processing_response_t));
+  
+  res->total_vertical_sum = 0;
+  res->total_horizontal_sum = 0;
+  res->total_mass = 0;
   
   uint32_t final_row = req.starting_row + req.row_count;
   uint32_t total_col_pairs = req.row_size / 2;
@@ -19,18 +25,20 @@ void* processImageChunk(void* args) {
         && curr.U < MAX_U
         && curr.V > MIN_V
         && curr.V < MAX_V
+        && curr.Y1 > MIN_Y 
+        && curr.Y1 < MAX_Y
+        && curr.Y2 > MIN_Y
+        && curr.Y2 < MAX_Y
       ) {
-        if (curr.Y1 > MIN_Y && curr.Y1 < MAX_Y) {
-          res->total_vertical_sum += row;
-          res->total_horizontal_sum += col_pair * 2;
-          res->total_mass++;
-        }
-
-        if (curr.Y2 > MIN_Y && curr.Y2 < MAX_Y) {
-          res->total_vertical_sum += row;
-          res->total_horizontal_sum += col_pair * 2 + 1;
-          res->total_mass++;
-        }
+        res->total_vertical_sum += 2 * row;
+        res->total_horizontal_sum += col_pair * 4 + 1;
+        res->total_mass += 2;
+#if STREAM_IMAGE == 1
+        req.image[row * total_col_pairs + col_pair].Y1 = (uint8_t) 128;
+        req.image[row * total_col_pairs + col_pair].Y2 = (uint8_t) 128;
+        req.image[row * total_col_pairs + col_pair].U = (uint8_t) 255;
+        req.image[row * total_col_pairs + col_pair].V = (uint8_t) 255;
+#endif
       }
     }
   }

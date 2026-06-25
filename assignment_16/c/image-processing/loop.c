@@ -2,6 +2,7 @@
  * - https://superuser.com/questions/1462693/how-to-stream-screen-to-remote-computer-with-gstreamer
  * - https://github.com/agrechnev/gst_app_tutorial/blob/master/video3.cpp
  */
+#include "loop.h"
 
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
@@ -10,23 +11,34 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-#include "loop.h"
+#include "../constants.h"
 #include "image-processing.h"
+#include "linMap.h"
 
-static GstElement* stream_source;
-static bool send_data = true;
+#include "../controller/loop.h"
+
+#if STREAM_IMAGE == 1
+static GstElement *stream_pipeline, *stream_source;
+static bool send_data = true, stream_started = false;
+#endif
 
 static GstFlowReturn new_sample (GstElement *sink) {
-  printf("new_sample() ran\n");
   GstSample *sample;
   GstBuffer *buffer_in;
   yuyv_packet_t *packed_image;
-  uint32_t vertical_center = 0, horizontal_center = 0, mass = 0;
+  uint32_t vertical_center = 0, horizontal_center = 0, mass = 1;
+
+  double curr_pitch = controller_in.pitch_current_position;
+  double curr_yaw = controller_in.yaw_current_position;
+
+  printf("\n");
+  printf("Current pitch,yaw: %f, %f\n", curr_pitch, curr_yaw);
 
   /* Retrieve the buffer */
   g_signal_emit_by_name (sink, "pull-sample", &sample);
 
   if (sample) {
+    printf("New frame received\n");
     buffer_in = gst_sample_get_buffer (sample);
     packed_image = (yuyv_packet_t*) g_malloc(sizeof(yuyv_packet_t) * IMAGE_WIDTH * IMAGE_HEIGHT / 2);
 
@@ -52,17 +64,64 @@ static GstFlowReturn new_sample (GstElement *sink) {
       horizontal_center += res->total_horizontal_sum;
       free(res);
     }
+    vertical_center = vertical_center / mass;
+    horizontal_center = horizontal_center / mass;
 
-    if (mass < IMAGE_WIDTH * IMAGE_HEIGHT / 100) {
-      vertical_center = IMAGE_HEIGHT / 2;
-      horizontal_center = IMAGE_WIDTH / 2;
-      printf("low green\n");
-    } else {
-      vertical_center = vertical_center / mass;
-      horizontal_center = horizontal_center / mass;
+#if STREAM_IMAGE == 1
+    
+    /* Draw square at centre of mass. */
+    int total_cols = IMAGE_WIDTH / 2;
+    for (int i = vertical_center - 10; i <= vertical_center + 10 && i < IMAGE_HEIGHT; i++) {
+      for (int j = (horizontal_center - 10)/2; j <= (horizontal_center + 10)/2 && j < total_cols; j++) {
+        int curr_packet = i * total_cols + j;
+        if (i == vertical_center - 4 || i == vertical_center + 4 || j == (horizontal_center - 4)/2 || j == (horizontal_center + 4)/2) {
+          packed_image[curr_packet].Y1 = (uint8_t) 128;
+          packed_image[curr_packet].Y2 = (uint8_t) 128;
+          packed_image[curr_packet].U = (uint8_t) 0;
+          packed_image[curr_packet].V = (uint8_t) 255;
+        } else {
+          packed_image[curr_packet].Y1 = (uint8_t) 128;
+          packed_image[curr_packet].Y2 = (uint8_t) 128;
+          packed_image[curr_packet].U = (uint8_t) 255;
+          packed_image[curr_packet].V = (uint8_t) 0;
+        }
+      }
+    }
+#endif
+    printf("Mass: %u pixels (%.4f)\n", mass, (double)mass/(IMAGE_HEIGHT*IMAGE_WIDTH));
+    printf("Ball pos (ver,hor): %u, %u pixel\n", vertical_center, horizontal_center);
+
+    double pitch_diff = PI/180 * linMap(vertical_center, 
+                                        0, IMAGE_HEIGHT, 
+                                        FOV_V/2, -FOV_V/2);
+                      
+    double yaw_diff   = PI/180 * linMap(horizontal_center, 
+                                        0, IMAGE_WIDTH, 
+                                        FOV_H/2, -FOV_H/2);
+
+    printf("Pos diff (pitch,yaw): %.4f, %.4f rad\n", pitch_diff, yaw_diff);
+    
+    double new_target_pitch = curr_pitch + pitch_diff;
+    double new_target_yaw = curr_yaw + yaw_diff;
+    
+    if (mass < 1/100 * IMAGE_WIDTH * IMAGE_HEIGHT) {
+      new_target_pitch = controller_in.pitch_target_position;
+      new_target_yaw = controller_in.yaw_target_position;
     }
 
+    printf("Target pos (pitch,yaw): %.4f, %.4f rad\n", new_target_pitch, new_target_yaw);
+
+    controller_in.pitch_target_position = new_target_pitch;
+    controller_in.yaw_target_position = new_target_yaw;
+
+#if STREAM_IMAGE == 1
     if (send_data) {
+      if (!stream_started) {
+        stream_started = true;
+        g_print ("Now streaming:\n");
+        gst_element_set_state (stream_pipeline, GST_STATE_PLAYING);
+      }
+
       size_t buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * 2;
 
       GstBuffer *buffer_out = gst_buffer_new_and_alloc(buffer_size);
@@ -75,6 +134,7 @@ static GstFlowReturn new_sample (GstElement *sink) {
 
       gst_app_src_push_buffer(GST_APP_SRC(stream_source), buffer_out);
     }
+#endif
 
     printf("horizontal center: %u, vertical center: %u", horizontal_center, vertical_center);
     gst_sample_unref (sample);
@@ -118,66 +178,26 @@ bus_call (GstBus     *bus,
   return TRUE;
 }
 
-/// Callback called when the pipeline wants more data
-void startFeed(GstElement *source, guint size) {
-  send_data = true;
-}
-
-/// Callback called when the pipeline wants no more data for now
-void stopFeed(GstElement *source) {
-  send_data = false;
-}
-
 void* imageProcessingLoop (void* args)
 {
   GMainLoop *loop;
 
-  GstElement *pipeline, *source, *sink;
-  // stream_source is static so it can accesed from the new_sample function
+  GstElement *process_pipeline, *source, *sink;
+  GstBus *process_bus;
+  guint process_bus_watch_id;
+  
+  // stream_pipeline and stream_source are static so they can accesed from the new_sample function
   GstElement *stream_jpegenc, *stream_rtpenc, *stream_sink;
-  GstCaps *caps;
-  GstBus *bus;
-  guint bus_watch_id;
+  GstBus *stream_bus;
+  guint stream_bus_watch_id;
 
-  // /* Initialisation */
+  GstCaps *caps;
+
+  /* Initialisation */
   gst_init (NULL, NULL);
 
   loop = g_main_loop_new (NULL, FALSE);
-  
-  // /* Check input arguments */
 
-  /* Create gstreamer elements */
-  pipeline   = gst_pipeline_new ("");
-
-  /* Image Processing */
-  source      = gst_element_factory_make ("v4l2src",       "webcam-source");
-  sink        = gst_element_factory_make ("appsink",       "app-sink");
-  // /* Streaming */
-  stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
-  stream_jpegenc = gst_element_factory_make ("jpegenc",    "stream-jpegenc");
-  stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
-  stream_sink    = gst_element_factory_make ("udpsink",    "stream-sink");
-
-  if (!pipeline || !source || !sink) {
-    g_printerr ("One element could not be created. Exiting.\n");
-    return NULL;
-  }
-
-  /* Set up the pipeline */
-
-  g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
-  g_object_set (G_OBJECT (sink), "emit-signals", TRUE, NULL);
-  g_signal_connect (G_OBJECT (sink), "new-sample", G_CALLBACK(new_sample), NULL);
-
-  g_object_set (G_OBJECT (stream_sink), "host", STREAM_IP, NULL);
-  g_object_set (G_OBJECT (stream_sink), "port", STREAM_PORT, NULL);
-  g_signal_connect(stream_source, "need-data", G_CALLBACK(startFeed), NULL);
-  g_signal_connect(stream_source, "enough-data", G_CALLBACK(stopFeed), NULL);
-
-  /* we add a message handler */
-  bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-  bus_watch_id = gst_bus_add_watch (bus, bus_call, loop);
-  gst_object_unref (bus);
 
   /* Define capabilities */
   caps = gst_caps_new_simple ("video/x-raw",
@@ -187,23 +207,86 @@ void* imageProcessingLoop (void* args)
                               "framerate", GST_TYPE_FRACTION, VIDEO_FPS, 1,
                               NULL);
 
+  /* Create gstreamer elements */
+  /* Image Processing */
+  process_pipeline   = gst_pipeline_new ("");
+
+  source      = gst_element_factory_make ("v4l2src",       "webcam-source");
+  sink        = gst_element_factory_make ("appsink",       "app-sink");
+
+  if (!process_pipeline || !source || !sink) {
+    g_printerr ("One processing element could not be created. Exiting.\n");
+    return NULL;
+  }
+
+  /* Set up the process_pipeline */
+
+  g_object_set (G_OBJECT (source), "device", DEVICE_NAME, NULL);
+  g_object_set (G_OBJECT (sink), "emit-signals", TRUE, NULL);
+  g_signal_connect (G_OBJECT (sink), "new-sample", G_CALLBACK(new_sample), NULL);
+  
+  /* we add message handlers */
+  process_bus = gst_pipeline_get_bus (GST_PIPELINE (process_pipeline));
+  process_bus_watch_id = gst_bus_add_watch (process_bus, bus_call, loop);
+  gst_object_unref (process_bus);
+
+
   /* we add all elements into the pipeline */
-  gst_bin_add_many (GST_BIN (pipeline),
-                    source, sink,
-                    stream_source, stream_jpegenc,
-                    stream_rtpenc, stream_sink, NULL);
+  gst_bin_add_many (GST_BIN (process_pipeline),
+                    source, sink, NULL);
 
   gst_element_link_filtered (source, sink, caps);
   
+#if STREAM_IMAGE == 1
+  /* Repeat for Streaming */
+  stream_pipeline    = gst_pipeline_new ("");
+  stream_source  = gst_element_factory_make ("appsrc",     "stream-source");
+  stream_jpegenc = gst_element_factory_make ("jpegenc",    "stream-jpegenc");
+  stream_rtpenc  = gst_element_factory_make ("rtpjpegpay", "stream-rtpenc");
+  stream_sink    = gst_element_factory_make ("udpsink",    "stream-sink");
+  
+  if (!stream_pipeline) {
+    g_printerr ("stream_pipeline could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_source) {
+    g_printerr ("stream_source element could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_jpegenc) {
+    g_printerr ("stream_jpegenc element could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_rtpenc) {
+    g_printerr ("stream_rtpenc element could not be created. Exiting.\n");
+    return NULL;
+  }
+    if (!stream_sink) {
+    g_printerr ("stream_sink element could not be created. Exiting.\n");
+    return NULL;
+  }
+    
+  g_object_set (G_OBJECT (stream_sink), "host", STREAM_IP, NULL);
+  g_object_set (G_OBJECT (stream_sink), "port", STREAM_PORT, NULL);
+  
+  stream_bus = gst_pipeline_get_bus (GST_PIPELINE (stream_pipeline));
+  stream_bus_watch_id = gst_bus_add_watch (stream_bus, bus_call, loop);
+  gst_object_unref (stream_bus);
+
+  gst_bin_add_many (GST_BIN (stream_pipeline),
+                  stream_source, stream_jpegenc,
+                  stream_rtpenc, stream_sink, NULL);
+
   gst_element_link_filtered (stream_source, stream_jpegenc, caps);
   gst_element_link (stream_jpegenc, stream_rtpenc);
   gst_element_link (stream_rtpenc, stream_sink);
+#endif
 
   gst_caps_unref(caps);
 
-  /* Set the pipeline to "playing" state*/
+  /* Set the process_pipeline to "playing" state*/
   g_print ("Now recording:\n");
-  gst_element_set_state (pipeline, GST_STATE_PLAYING);
+  gst_element_set_state (process_pipeline, GST_STATE_PLAYING);
 
 
   /* Iterate */
@@ -211,13 +294,24 @@ void* imageProcessingLoop (void* args)
   g_main_loop_run (loop);
 
   /* Out of the main loop, clean up nicely */
-  g_print ("Returned, stopped recording\n");
-  gst_element_set_state (pipeline, GST_STATE_NULL);
-
-  g_print ("Deleting pipeline\n");
-  gst_object_unref (GST_OBJECT (pipeline));
-  g_source_remove (bus_watch_id);
+  
+  g_print ("Deleting process_pipeline\n");
+  
+  gst_element_set_state (process_pipeline, GST_STATE_NULL);
+  
+  gst_object_unref (GST_OBJECT (process_pipeline));
+  g_source_remove (process_bus_watch_id);
   g_main_loop_unref (loop);
+  
+#if STREAM_IMAGE == 1
+  g_print ("Deleting stream_pipeline\n");
+  
+  gst_element_set_state (stream_pipeline, GST_STATE_NULL);
+  
+  gst_object_unref (GST_OBJECT (stream_pipeline));
+  g_source_remove (stream_bus_watch_id);
+  g_main_loop_unref (loop);
+#endif
 
   return NULL;
 }

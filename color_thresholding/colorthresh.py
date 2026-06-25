@@ -43,18 +43,18 @@ class ColorThreshold:
         self.source = source
 
         # Create trackbars.
-        cv2.createTrackbar("Ch0 Low", self.CTRL_WIN, 0, self.PIXEL_MAX, 
-                           self.onTrackbar)
-        cv2.createTrackbar("Ch0 High", self.CTRL_WIN, 0, self.PIXEL_MAX, 
-                           self.onTrackbar)
-        cv2.createTrackbar("Ch1 Low", self.CTRL_WIN, 0, self.PIXEL_MAX, 
-                           self.onTrackbar)
-        cv2.createTrackbar("Ch1 High", self.CTRL_WIN, 0, self.PIXEL_MAX,
-                            self.onTrackbar)
-        cv2.createTrackbar("Ch2 Low", self.CTRL_WIN, 0, self.PIXEL_MAX, 
-                           self.onTrackbar)
-        cv2.createTrackbar("Ch2 High", self.CTRL_WIN, 0, self.PIXEL_MAX, 
-                           self.onTrackbar)
+        cv2.createTrackbar("Ch0 Low", self.CTRL_WIN, self.PIXEL_MIN, 
+                           self.PIXEL_MAX, self.onTrackbar)
+        cv2.createTrackbar("Ch0 High", self.CTRL_WIN, self.PIXEL_MAX, 
+                           self.PIXEL_MAX, self.onTrackbar)
+        cv2.createTrackbar("Ch1 Low", self.CTRL_WIN, self.PIXEL_MIN, 
+                           self.PIXEL_MAX, self.onTrackbar)
+        cv2.createTrackbar("Ch1 High", self.CTRL_WIN, self.PIXEL_MAX, 
+                           self.PIXEL_MAX, self.onTrackbar)
+        cv2.createTrackbar("Ch2 Low", self.CTRL_WIN, self.PIXEL_MIN, 
+                           self.PIXEL_MAX, self.onTrackbar)
+        cv2.createTrackbar("Ch2 High", self.CTRL_WIN, self.PIXEL_MAX, 
+                           self.PIXEL_MAX, self.onTrackbar)
 
         # Link color space button to mouse event callback. Call
         # updateButton() to initialize button with color space text.
