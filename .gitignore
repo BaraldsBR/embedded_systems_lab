@@ -2,3 +2,5 @@
 **/*.vcd
 **/*.DS_Store
 **/.venv
+**/*.mp4
+**/*.yuv
