@@ -9,6 +9,10 @@ void* processImageChunk(void* args) {
   thread_processing_request_t req = *((thread_processing_request_t*)args);
   thread_processing_response_t* res = malloc(sizeof(thread_processing_response_t));
   
+  res->total_vertical_sum = 0;
+  res->total_horizontal_sum = 0;
+  res->total_mass = 0;
+  
   uint32_t final_row = req.starting_row + req.row_count;
   uint32_t total_col_pairs = req.row_size / 2;
 
