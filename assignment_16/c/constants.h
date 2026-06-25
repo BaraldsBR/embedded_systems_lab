@@ -21,8 +21,8 @@
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
 #define VIDEO_FPS 30
-#define HORIZONTAL_FOV 44
-#define VERTICAL_FOV 33
+#define FOV_H 44.0
+#define FOV_V 33.0
 
 /* Image Processing Config */
 #define SUBTHREADS 4

@@ -13,7 +13,7 @@
 
 #include "../constants.h"
 #include "image-processing.h"
-#include "pixel2rad.h"
+#include "linMap.h"
 
 #include "../controller/loop.h"
 
@@ -94,17 +94,23 @@ static GstFlowReturn new_sample (GstElement *sink) {
       horizontal_center = horizontal_center / mass;
     }
 
+    printf("Mass: %u pixels (%.4f)\n", mass, (double)mass/(IMAGE_HEIGHT*IMAGE_WIDTH));
     printf("Ball pos (ver,hor): %u, %u pixel\n", vertical_center, horizontal_center);
 
-    double pitch_diff = pixel2rad(vertical_center, IMAGE_HEIGHT, VERTICAL_FOV);
-    double yaw_diff = pixel2rad(horizontal_center, IMAGE_WIDTH, HORIZONTAL_FOV);
+    double pitch_diff = PI/180 * linMap(vertical_center, 
+                                        0, IMAGE_HEIGHT, 
+                                        FOV_V/2, -FOV_V/2);
+                      
+    double yaw_diff   = PI/180 * linMap(horizontal_center, 
+                                        0, IMAGE_WIDTH, 
+                                        FOV_H/2, -FOV_H/2);
 
-    printf("Pos diff (pitch,yaw): %f, %f rad\n", pitch_diff, yaw_diff);
+    printf("Pos diff (pitch,yaw): %.4f, %.4f rad\n", pitch_diff, yaw_diff);
 
     double new_target_pitch = curr_pitch + pitch_diff;
     double new_target_yaw = curr_yaw + yaw_diff;
 
-    printf("Target pos (pitch,yaw): %f, %f rad\n", new_target_pitch, new_target_yaw);
+    printf("Target pos (pitch,yaw): %.4f, %.4f rad\n", new_target_pitch, new_target_yaw);
 
     controller_in.pitch_target_position = new_target_pitch;
     controller_in.yaw_target_position = new_target_yaw;
