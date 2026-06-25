@@ -26,7 +26,7 @@ static GstFlowReturn new_sample (GstElement *sink) {
   GstSample *sample;
   GstBuffer *buffer_in;
   yuyv_packet_t *packed_image;
-  uint32_t vertical_center = 0, horizontal_center = 0, mass = 0;
+  uint32_t vertical_center = 0, horizontal_center = 0, mass = 1;
 
   double curr_pitch = controller_in.pitch_current_position;
   double curr_yaw = controller_in.yaw_current_position;
@@ -64,36 +64,30 @@ static GstFlowReturn new_sample (GstElement *sink) {
       horizontal_center += res->total_horizontal_sum;
       free(res);
     }
+    vertical_center = vertical_center / mass;
+    horizontal_center = horizontal_center / mass;
 
-    if (mass < IMAGE_WIDTH * IMAGE_HEIGHT / 100) {
-      vertical_center = IMAGE_HEIGHT / 2;
-      horizontal_center = IMAGE_WIDTH / 2;
 #if STREAM_IMAGE == 1
-      int total_cols = IMAGE_WIDTH / 2;
-      for (int i = vertical_center - 4; i <= vertical_center + 4 && i < IMAGE_HEIGHT; i++) {
-        for (int j = (horizontal_center - 4)/2; j <= (horizontal_center + 4)/2 && j < total_cols; j++) {
-          int curr_packet = i * total_cols + j;
-          if (i == vertical_center - 4 || i == vertical_center + 4 || j == (horizontal_center - 4)/2 || j == (horizontal_center + 4)/2) {
-            packed_image[curr_packet].Y1 = (uint8_t) 128;
-            packed_image[curr_packet].Y2 = (uint8_t) 128;
-            packed_image[curr_packet].U = (uint8_t) 0;
-            packed_image[curr_packet].V = (uint8_t) 255;
-          } else {
-            packed_image[curr_packet].Y1 = (uint8_t) 128;
-            packed_image[curr_packet].Y2 = (uint8_t) 128;
-            packed_image[curr_packet].U = (uint8_t) 255;
-            packed_image[curr_packet].V = (uint8_t) 0;
-          }
+    
+    /* Draw square at centre of mass. */
+    int total_cols = IMAGE_WIDTH / 2;
+    for (int i = vertical_center - 10; i <= vertical_center + 10 && i < IMAGE_HEIGHT; i++) {
+      for (int j = (horizontal_center - 10)/2; j <= (horizontal_center + 10)/2 && j < total_cols; j++) {
+        int curr_packet = i * total_cols + j;
+        if (i == vertical_center - 4 || i == vertical_center + 4 || j == (horizontal_center - 4)/2 || j == (horizontal_center + 4)/2) {
+          packed_image[curr_packet].Y1 = (uint8_t) 128;
+          packed_image[curr_packet].Y2 = (uint8_t) 128;
+          packed_image[curr_packet].U = (uint8_t) 0;
+          packed_image[curr_packet].V = (uint8_t) 255;
+        } else {
+          packed_image[curr_packet].Y1 = (uint8_t) 128;
+          packed_image[curr_packet].Y2 = (uint8_t) 128;
+          packed_image[curr_packet].U = (uint8_t) 255;
+          packed_image[curr_packet].V = (uint8_t) 0;
         }
       }
-#endif
-      
-      printf("Low green\n");
-    } else {
-      vertical_center = vertical_center / mass;
-      horizontal_center = horizontal_center / mass;
     }
-
+#endif
     printf("Mass: %u pixels (%.4f)\n", mass, (double)mass/(IMAGE_HEIGHT*IMAGE_WIDTH));
     printf("Ball pos (ver,hor): %u, %u pixel\n", vertical_center, horizontal_center);
 
@@ -106,9 +100,14 @@ static GstFlowReturn new_sample (GstElement *sink) {
                                         FOV_H/2, -FOV_H/2);
 
     printf("Pos diff (pitch,yaw): %.4f, %.4f rad\n", pitch_diff, yaw_diff);
-
+    
     double new_target_pitch = curr_pitch + pitch_diff;
     double new_target_yaw = curr_yaw + yaw_diff;
+    
+    if (mass < 1/100 * IMAGE_WIDTH * IMAGE_HEIGHT) {
+      new_target_pitch = controller_in.pitch_target_position;
+      new_target_yaw = controller_in.yaw_target_position;
+    }
 
     printf("Target pos (pitch,yaw): %.4f, %.4f rad\n", new_target_pitch, new_target_yaw);
 
