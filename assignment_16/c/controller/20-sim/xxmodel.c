@@ -135,18 +135,18 @@ void XXModelInitialize_parameters(void)
 {
 	/* set the parameters */
 	xx_P[0] = 0.0;		/* PositionControllerPan\corrGain\K */
-	xx_P[1] = 0.70;		/* PositionControllerPan\PID1\kp */
-	xx_P[2] = 0.00;		/* PositionControllerPan\PID1\tauD */
+	xx_P[1] = 0.4;		/* PositionControllerPan\PID1\kp */
+	xx_P[2] = 0.005;	/* PositionControllerPan\PID1\tauD */
 	xx_P[3] = 0.17;		/* PositionControllerPan\PID1\beta */
-	xx_P[4] = 0.5;		/* PositionControllerPan\PID1\tauI */
+	xx_P[4] = 2.2;		/* PositionControllerPan\PID1\tauI */
 	xx_P[5] = -0.10;	/* PositionControllerPan\SignalLimiter2\minimum */
 	xx_P[6] = 0.10;		/* PositionControllerPan\SignalLimiter2\maximum */
 
 	xx_P[7] = 0.0;		/* PositionControllerTilt\corrGain\K */
-	xx_P[8] = 0.5;		/* PositionControllerTilt\PID1\kp */
-	xx_P[9] = 0.00;		/* PositionControllerTilt\PID1\tauD */
+	xx_P[8] = 0.25;		/* PositionControllerTilt\PID1\kp */
+	xx_P[9] = 0.005;	/* PositionControllerTilt\PID1\tauD */
 	xx_P[10] = 0.001;	/* PositionControllerTilt\PID1\beta */
-	xx_P[11] = 0.5;		/* PositionControllerTilt\PID1\tauI */
+	xx_P[11] = 2.5;		/* PositionControllerTilt\PID1\tauI */
 	xx_P[12] = -0.10;	/* PositionControllerTilt\SignalLimiter2\minimum */
 	xx_P[13] = 0.10;	/* PositionControllerTilt\SignalLimiter2\maximum */
 
