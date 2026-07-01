@@ -15,15 +15,16 @@ module debouncer #(
     end else begin
       if (signal == debounced) begin
         counter <= 0;
+        debounced <= debounced;
       end else begin
-        if (counter <= DEBOUNCE_CYCLES) begin
-          counter <= counter + 1;
-        end else begin
-          counter <= 0;
+        if (counter >= DEBOUNCE_CYCLES) begin
           debounced <= signal;
+          counter <= 0;
+        end else begin
+          debounced <= debounced;
+          counter <= counter + 1;
         end
       end
     end
   end
-
 endmodule
