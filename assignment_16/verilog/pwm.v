@@ -1,7 +1,10 @@
 module pwm #(
 
   // 20kHz PWM for 100MHz FPGA clock
-  parameter PWM_CYCLE_LENGTH = 5000
+  parameter PWM_CYCLE_LENGTH = 5000,
+
+  // Hardcoded 25% pwm safety limit
+  parameter PWM_MAX = PWM_CYCLE_LENGTH * 0.25
 ) (
   input rst,
   input clk,
@@ -11,10 +14,6 @@ module pwm #(
   output dir_B,
   output PWM_VAL
 );
-
-  // Hardcoded 25% pwm safety limit
-  localparam PWM_MAX = PWM_CYCLE_LENGTH / 4;
-  
   reg  [15:0] counted_cycles;
   wire        target_zero = (target_value == 16'b0);
   wire        target_sign = target_value[15];
@@ -25,11 +24,8 @@ module pwm #(
     if(rst) begin
       counted_cycles <= 0;
     end else begin
-      if (counted_cycles >= PWM_CYCLE_LENGTH) begin
-        counted_cycles <= 0;
-      end else begin
-        counted_cycles <= counted_cycles + 1;
-      end
+      if (counted_cycles >= PWM_CYCLE_LENGTH) counted_cycles <= 0;
+      else counted_cycles <= counted_cycles + 1;
     end
   end
 
