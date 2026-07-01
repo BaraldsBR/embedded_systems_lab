@@ -1,5 +1,5 @@
 module spi #(
-    parameter WIDTH = 32
+  parameter WIDTH = 32
 )(
   input                  clk,        
   input                  rst,
@@ -25,11 +25,11 @@ module spi #(
       sck_reg <= {sck_reg[1:0], sck};
     end
   end
+  wire cs_syn = cs_reg[1];
   wire sck_re = (sck_reg==3'b011);
   wire sck_fe = (sck_reg==3'b100);
-  wire cs_syn = cs_reg[1];
 
-  // FSM
+  // FSM State transfer
   localparam IDLE     = 1'b0;
   localparam TRANSFER = 1'b1;
   reg state;
@@ -39,7 +39,7 @@ module spi #(
     else     state <= next_state;
   end
 
-  // next state block
+  // FSM next state combinational logic
   always @(*) begin
     case (state)
       IDLE:     next_state = (!cs_syn) ? TRANSFER : IDLE;
@@ -48,7 +48,7 @@ module spi #(
     endcase
   end
 
-  // datapath sortof
+  // FSM datapath
   reg [WIDTH-1:0] tx_reg, rx_reg;
 
   always @(posedge clk) begin
