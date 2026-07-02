@@ -1,15 +1,20 @@
-`include "encoder.v" // Include YOUR entity.
-`timescale 1ns / 1ps  // Time unit = period, precision
+`include "encoder.v"
+`timescale 1ns / 1ps
 module tb_encoder;
+  localparam POS_WIDTH = 16;
+  localparam POSITIVE_PULSES = 50;
+  localparam NEGATIVE_PULSES = 75;
 
-    reg  rst;
-    reg  clk;
+  reg  rst;
+  reg  clk;
 
-    reg  signal_A;
-    reg  signal_B;
-    wire [15:0] pos_out;
+  reg  signal_A;
+  reg  signal_B;
+  wire [POS_WIDTH - 1:0] pos_out;
 
-  encoder dut ( // <- TopEntity dut (Device Under Test) UPDATE TopEntity when relevant!
+  encoder #(
+    .POS_WIDTH(POS_WIDTH)
+  ) dut ( 
     .rst(rst),
     .clk(clk),
     .signal_A(signal_A),
@@ -17,7 +22,7 @@ module tb_encoder;
     .pos_out(pos_out)
   );
 
-  // generate input signals
+  // generate clock
   initial begin
     forever begin
       clk = 0;
@@ -27,11 +32,9 @@ module tb_encoder;
     end
   end
 
-
-// Start of your testbench script
   initial begin
-    $dumpfile("signals.vcd");  // Name of the signal dump file
-    $dumpvars(0, tb_encoder);  // Signals to dump
+    $dumpfile("signals.vcd");
+    $dumpvars(0, tb_encoder);
 
     signal_A <= 1'b0;
     signal_B <= 1'b0;
@@ -41,34 +44,32 @@ module tb_encoder;
     rst = 1;
     #10;
     rst = 0;
+    #10;
 
-    
-    repeat (50) begin
-      // go one way  
+    repeat (POSITIVE_PULSES) begin
       signal_B <= 1'b1;
-      #100;
+      #50;
       signal_A <= 1'b1;
-      #100;
+      #50;
       signal_B <= 1'b0;
-      #100;
+      #50;
       signal_A <= 1'b0;
-      #100;
+      #50;
     end
 
-    #100;
+    #50;
 
-    repeat (75) begin
-      // go one way
-      signal_A <= 1'b0;
-      #100;
-      signal_B <= 1'b0;
-      #100;
+    repeat (NEGATIVE_PULSES) begin
       signal_A <= 1'b1;
-      #100;
+      #50;
       signal_B <= 1'b1;
-      #100;
+      #50;
+      signal_A <= 1'b0;
+      #50;
+      signal_B <= 1'b0;
+      #50;
     end
     
-    $finish;  // end simulation
+    $finish;
   end
 endmodule
